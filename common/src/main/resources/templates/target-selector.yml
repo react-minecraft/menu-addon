@@ -1,0 +1,141 @@
+title: "&8Нарушители"
+size: 54
+
+listing:
+
+  only-online: true
+
+  sort:
+
+    by: latest-failure
+    descending: true
+
+  allowed-slots:
+
+    - 10-16
+    - 19-25
+    - 28-34
+    - 37-43
+
+target-template:
+
+  material:
+
+    use-player-head: true
+
+    otherwise: player_head
+
+  name: " <color:#eb2544>[⚡] <color:#f0f0f0>{player.name}  "
+
+  failures:
+
+    max: 15
+
+    per-line: 5
+
+    appending: left
+
+    decimal-format: '0.00000'
+
+    format: '{probability:colored}'
+
+    separator: ' '
+
+    empty: '&7Нет данных'
+
+  lore:
+    - ""
+    - " <color:#f0f0f0>Последние проверки:  "
+    - " {target.failures:formatted}  "
+    - ""
+    - " <color:#f0f0f0>Средняя вероятность:  "
+    - " {target.statistic.average-probability:colored}  "
+    - ""
+    - " <color:#f0f0f0>Средняя уверенность модели:  "
+    - " {target.statistic.average-confidence:colored}  "
+    - ""
+    - " <color:#f0f0f0>Ударил последний раз:  "
+    - " <color:#eb2544>{target.last-hit:formatted} назад  "
+    - ""
+    - " <color:#eb2544>▶ <color:#f0f0f0>Нажмите ЛКМ, чтобы наблюдать  "
+    - " <color:#eb2544>▶ <color:#f0f0f0>Нажмите ПКМ, чтобы посмотреть аналитику  "
+    - " "
+
+  update-on-failure-receive: true
+
+  on-left-click:
+
+    - "[gm] 3"
+    - "[tp-to-target]"
+
+  on-right-click:
+
+    - "[select-clicked]"
+
+items:
+
+  next:
+
+    material: tipped_arrow
+
+    color: '#eb2544'
+
+    slots:
+
+      - 51
+
+    name: " <color:#f0f0f0>Следующая страница <color:#eb2544>[→]  "
+
+    on-left-click:
+
+      - "[switch-to-page] {pagination:next}"
+
+  previous:
+
+    material: tipped_arrow
+
+    color: '#eb2544'
+
+    slots:
+
+      - 47
+
+    name: " <color:#eb2544>[←] <color:#f0f0f0>Предыдущая страница  "
+
+    on-left-click:
+
+      - "[switch-to-page] {pagination:previous}"
+
+
+  filler0:
+
+    material: orange_stained_glass_pane
+
+    name: '&r'
+
+    lore: [ ]
+
+    # noinspection YAMLIncompatibleTypes
+    slots:
+
+      - 9
+      - 17-18
+      - 26-27
+      - 35-36
+      - 44
+
+  filler:
+
+    material: red_stained_glass_pane
+
+    name: '&r'
+
+    lore: [ ]
+
+    slots:
+
+      - 0-8
+
+      - 45-46
+      - 48-50
+      - 52-53

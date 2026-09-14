@@ -1,0 +1,115 @@
+title: "&8Аналитика {player.name}"
+size: 54
+
+listing:
+
+  allowed-slots:
+
+    - 10-16
+    - 19-25
+    - 28-34
+    - 37-43
+
+entry-template:
+
+  failures:
+
+    per-entry: 11
+
+    decimal-format: '0.00000'
+
+    format: " {probability:colored} &7| &8{check.name} &7| &#f0f0f0{passed-time:formatted}"
+
+  material:
+
+    colored-pane:
+
+      enabled: true
+
+      color: probability
+
+    otherwise: white_stained_glass_pane
+
+  name: " <color:#eb2544>[⚡] <color:#f0f0f0>Средняя вероятность: {statistic.average-probability:colored}  "
+
+  lore:
+
+    header:
+      - ' '
+      - ' <color:#f0f0f0>Вер.    &7| <color:#f0f0f0>Чек    &7| <color:#f0f0f0>Прошло времени'
+      - ' &7&m                                 '
+
+    footer:
+      - ' '
+
+  update-on-failure-receive: true
+
+  on-left-click: [ ]
+
+  on-right-click: [ ]
+
+items:
+
+  next:
+
+    material: tipped_arrow
+
+    color: '#eb2544'
+
+    slots:
+
+      - 51
+
+    name: " <color:#f0f0f0>Следующая страница <color:#eb2544>[→]  "
+
+    on-left-click:
+
+      - "[switch-to-page] {pagination:next}"
+
+  previous:
+
+    material: tipped_arrow
+
+    color: '#eb2544'
+
+    slots:
+
+      - 47
+
+    name: " <color:#eb2544>[←] <color:#f0f0f0>Предыдущая страница  "
+
+    on-left-click:
+
+      - "[switch-to-page] {pagination:previous}"
+
+  back:
+
+    material: barrier
+
+    slots:
+
+      - 49
+
+    name: " <color:#eb2544>[←] <color:#f0f0f0>Вернуться к нарушителям  "
+
+    on-left-click:
+
+      - "[open-target-selector]"
+
+  filler:
+
+    material: orange_stained_glass_pane
+
+    name: '&r'
+
+    lore: [ ]
+
+    # noinspection YAMLIncompatibleTypes
+    slots:
+
+      - 0-8
+
+      - 45-46
+      - 48
+      - 50
+      - 52-53

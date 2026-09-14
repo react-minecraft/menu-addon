@@ -1,0 +1,6 @@
+name: '${name}'
+version: '${version}'
+
+mainClass: com.g4vrk.menuAddon.ReactMenuAddon
+
+description: '${description}'

@@ -1,0 +1,46 @@
+settings:
+
+  # Changing the command literal requires a server restart.
+  argument-literal: menu
+
+  permission: react.menu.view
+
+  # Players without inference entries can also be displayed in the selector.
+  include-empty-history: false
+
+  format:
+
+    probability: '0.00000'
+    confidence: '0.00000'
+
+    elapsed-time:
+
+      now: 'только что'
+      never: 'никогда'
+      separator: ' '
+      max-parts: 2
+
+      days: '{value}д'
+      hours: '{value}ч'
+      minutes: '{value}м'
+      seconds: '{value}с'
+
+open:
+
+  on-console:
+    - "[msg] <b><gradient:#EB2544:#FF5B73>⚡ ʀᴇᴀᴄᴛ-ᴍᴇɴᴜ</gradient></b> <gray>»</gray> <white>Эта команда доступна только игрокам."
+
+  on-denied:
+    - "[msg] <b><gradient:#EB2544:#FF5B73>⚡ ʀᴇᴀᴄᴛ-ᴍᴇɴᴜ</gradient></b> <gray>»</gray> <white>У вас нет права <red>{permission}</red>."
+
+reload:
+
+  on-start:
+    - "[msg] <b><gradient:#EB2544:#FF5B73>⚡ ʀᴇᴀᴄᴛ-ᴍᴇɴᴜ</gradient></b> <gray>»</gray> <white>Начата перезагрузка аддона..."
+    - "[bar] <b><gradient:#EB2544:#FF5B73>⚡ ʀᴇᴀᴄᴛ-ᴍᴇɴᴜ</gradient></b> <gray>»</gray> <white>Начата перезагрузка..."
+    - "[sound] block.note_block.pling;1.0;1.0"
+
+  on-finish:
+    - "[msg] <b><gradient:#EB2544:#FF5B73>⚡ ʀᴇᴀᴄᴛ-ᴍᴇɴᴜ</gradient></b> <gray>»</gray> <white>Аддон перезагружен!"
+    - "[bar] <b><gradient:#EB2544:#FF5B73>⚡ ʀᴇᴀᴄᴛ-ᴍᴇɴᴜ</gradient></b> <gray>»</gray> <white>Аддон успешно перезагружен!"
+    - "[sound] entity.player.levelup;1.0;1.0"
