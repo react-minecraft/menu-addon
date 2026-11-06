@@ -1,7 +1,7 @@
 package com.g4vrk.menuAddon;
 
-import com.g4vrk.functionalConfiguration.Config;
-import com.g4vrk.functionalConfiguration.loader.YamlConfigLoader;
+import com.g4vrk.config.Config;
+import com.g4vrk.config.loader.YamlConfigLoader;
 import com.g4vrk.menuAddon.command.argument.MenuArgument;
 import com.g4vrk.menuAddon.command.argument.MenuReloadArgument;
 import com.g4vrk.menuAddon.config.AddonSettings;
@@ -190,8 +190,8 @@ public final class ReactMenuAddon extends JavaAddon {
         return new LoadedModules(
                 loadedMainConfig,
                 new AddonSettings(loadedMainConfig.node("settings")),
-                new TargetSelectorConfiguration(targetSelectorConfig.getRoot()),
-                new SelectedTargetConfiguration(selectedTargetConfig.getRoot())
+                new TargetSelectorConfiguration(targetSelectorConfig.root()),
+                new SelectedTargetConfiguration(selectedTargetConfig.root())
         );
     }
 

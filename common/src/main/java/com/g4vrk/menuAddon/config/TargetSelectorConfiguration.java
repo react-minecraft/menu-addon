@@ -85,7 +85,6 @@ public final class TargetSelectorConfiguration {
     public enum SortBy {
         LATEST_FAILURE,
         AVERAGE_PROBABILITY,
-        AVERAGE_CONFIDENCE,
         NAME;
 
         private static @NotNull SortBy read(

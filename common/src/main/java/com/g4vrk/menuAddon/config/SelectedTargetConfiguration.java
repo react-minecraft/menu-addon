@@ -124,7 +124,7 @@ public final class SelectedTargetConfiguration {
                 );
             } catch (final IllegalArgumentException exception) {
                 throw new IllegalArgumentException(
-                        "entry-template.material.colored-pane.color must be 'probability' or 'confidence'",
+                        "entry-template.material.colored-pane.color must be 'probability'",
                         exception
                 );
             }
@@ -132,7 +132,6 @@ public final class SelectedTargetConfiguration {
     }
 
     public enum ValueSource {
-        PROBABILITY,
-        CONFIDENCE
+        PROBABILITY
     }
 }

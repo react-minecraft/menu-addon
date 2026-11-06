@@ -5,7 +5,6 @@ import com.g4vrk.menuAddon.config.ItemConfiguration;
 import com.g4vrk.menuAddon.config.SelectedTargetConfiguration;
 import com.g4vrk.menuAddon.config.TargetSelectorConfiguration;
 import com.g4vrk.react.React;
-import com.g4vrk.react.color.resolver.impl.ConfidenceColorResolver;
 import com.g4vrk.react.color.resolver.impl.ProbabilityColorResolver;
 import com.g4vrk.react.history.entry.InferenceHistoryEntry;
 import com.g4vrk.react.parse.time.TimeParser;
@@ -43,7 +42,6 @@ public final class MenuTextRenderer {
     private final ElapsedTimeFormatter elapsedTimeFormatter;
     private final long combatDurationMillis;
     private final ProbabilityColorResolver probabilityColorResolver = new ProbabilityColorResolver();
-    private final ConfidenceColorResolver confidenceColorResolver = new ConfidenceColorResolver();
 
     public MenuTextRenderer(
             final @NotNull String2ComponentSerializer serializer,
@@ -266,7 +264,6 @@ public final class MenuTextRenderer {
     ) {
         final Map<String, String> placeholders = this.menuPlaceholders(0, 1, target);
         final String probability = this.format(statistic.averageProbability(), this.settings.probabilityFormat());
-        final String confidence = this.format(statistic.averageConfidence(), this.settings.confidenceFormat());
         final long latestInference = history.length == 0 ? 0L : history[history.length - 1].getTimestamp();
         final long inferredCombatHit = target.combatActivity.getActivityUntil() <= 0L
                 ? 0L
@@ -281,11 +278,6 @@ public final class MenuTextRenderer {
                 "target.statistic.average-probability:colored",
                 this.coloredProbability(statistic.averageProbability(), probability)
         );
-        placeholders.put("target.statistic.average-confidence", confidence);
-        placeholders.put(
-                "target.statistic.average-confidence:colored",
-                this.coloredConfidence(statistic.averageConfidence(), confidence)
-        );
 
         return placeholders;
     }
@@ -295,17 +287,11 @@ public final class MenuTextRenderer {
             final @NotNull GroupStatistic statistic
     ) {
         final String probability = this.format(statistic.averageProbability(), this.settings.probabilityFormat());
-        final String confidence = this.format(statistic.averageConfidence(), this.settings.confidenceFormat());
 
         placeholders.put("statistic.average-probability", probability);
         placeholders.put(
                 "statistic.average-probability:colored",
                 this.coloredProbability(statistic.averageProbability(), probability)
-        );
-        placeholders.put("statistic.average-confidence", confidence);
-        placeholders.put(
-                "statistic.average-confidence:colored",
-                this.coloredConfidence(statistic.averageConfidence(), confidence)
         );
     }
 
@@ -315,12 +301,9 @@ public final class MenuTextRenderer {
             final @NotNull String decimalPattern
     ) {
         final String probability = this.format(entry.getProbability(), decimalPattern);
-        final String confidence = this.format(entry.getConfidence(), decimalPattern);
 
         placeholders.put("probability", probability);
         placeholders.put("probability:colored", this.coloredProbability(entry.getProbability(), probability));
-        placeholders.put("confidence", confidence);
-        placeholders.put("confidence:colored", this.coloredConfidence(entry.getConfidence(), confidence));
         placeholders.put("check.name", entry.getCheck().getName());
         placeholders.put("check.id", entry.getCheck().getConfigId());
         placeholders.put("passed-time", Long.toString(entry.getTimestamp()));
@@ -335,39 +318,23 @@ public final class MenuTextRenderer {
             return config.material();
         }
 
-        final boolean probability = config.coloredPane().valueSource()
-                == SelectedTargetConfiguration.ValueSource.PROBABILITY;
-        final double value = probability
-                ? statistic.averageProbability()
-                : statistic.averageConfidence();
-        final DyeColor dyeColor = dyeColor(value, probability);
+        final DyeColor dyeColor = dyeColor(statistic.averageProbability());
         final Material pane = Material.matchMaterial(dyeColor.name() + "_STAINED_GLASS_PANE");
         return pane == null ? config.material() : pane;
     }
 
     private static @NotNull DyeColor dyeColor(
-            final double rawValue,
-            final boolean probability
+            final double rawValue
     ) {
         final double value = Math.max(0.0D, Math.min(1.0D, rawValue));
         final int level = Math.min(4, (int) Math.floor(value * 5.0D));
 
-        if (probability) {
-            return switch (level) {
+        return switch (level) {
                 case 0 -> DyeColor.GREEN;
                 case 1 -> DyeColor.LIME;
                 case 2 -> DyeColor.YELLOW;
                 case 3 -> DyeColor.ORANGE;
                 default -> DyeColor.RED;
-            };
-        }
-
-        return switch (level) {
-            case 0 -> DyeColor.RED;
-            case 1 -> DyeColor.ORANGE;
-            case 2 -> DyeColor.YELLOW;
-            case 3 -> DyeColor.LIME;
-            default -> DyeColor.GREEN;
         };
     }
 
@@ -391,13 +358,6 @@ public final class MenuTextRenderer {
         return color(this.probabilityColorResolver.resolve(value), formatted);
     }
 
-    private @NotNull String coloredConfidence(
-            final double value,
-            final @NotNull String formatted
-    ) {
-        return color(this.confidenceColorResolver.resolve(value), formatted);
-    }
-
     private static @NotNull String color(
             final @NotNull TextColor color,
             final @NotNull String value
@@ -418,29 +378,23 @@ public final class MenuTextRenderer {
     }
 
     private record GroupStatistic(
-            double averageProbability,
-            double averageConfidence
+            double averageProbability
     ) {
 
         private static @NotNull GroupStatistic calculate(
                 final @NotNull List<InferenceHistoryEntry> entries
         ) {
             if (entries.isEmpty()) {
-                return new GroupStatistic(0.0D, 0.0D);
+                return new GroupStatistic(0.0D);
             }
 
             double probability = 0.0D;
-            double confidence = 0.0D;
 
             for (final InferenceHistoryEntry entry : entries) {
                 probability += entry.getProbability();
-                confidence += entry.getConfidence();
             }
 
-            return new GroupStatistic(
-                    probability / entries.size(),
-                    confidence / entries.size()
-            );
+            return new GroupStatistic(probability / entries.size());
         }
     }
 }

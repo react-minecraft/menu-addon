@@ -3,7 +3,8 @@
 paper-api = "1.19.4-R0.1-SNAPSHOT"
 minecraft = "1.19.4"
 
-react = "1.0.7"
+# React commit on react-minecraft/plugin (feat/vector-prewiew), built by JitPack.
+react = "bd99742"
 
 packetevents = "2.13.0"
 configurate = "4.2.0"
@@ -21,7 +22,7 @@ run-task = "3.0.2"
 
 paper-api = { module = "io.papermc.paper:paper-api", version.ref = "paper-api" }
 
-react = { module = "com.github.g4vrk.React:react-common", version.ref = "react" }
+react = { module = "com.github.react-minecraft.plugin:react-common", version.ref = "react" }
 
 packetevents = { module = "com.github.retrooper:packetevents-spigot", version.ref = "packetevents" }
 configurate-yaml = { module = "org.spongepowered:configurate-yaml", version.ref = "configurate" }

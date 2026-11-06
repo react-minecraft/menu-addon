@@ -384,9 +384,6 @@ public final class MenuManager implements MenuActionExecutor.Navigator {
             case AVERAGE_PROBABILITY -> Comparator.comparingDouble(
                     target -> target.inferenceStatistic.averageProbability()
             );
-            case AVERAGE_CONFIDENCE -> Comparator.comparingDouble(
-                    target -> target.inferenceStatistic.averageConfidence()
-            );
             case NAME -> Comparator.comparing(ReactPlayer::getName, String.CASE_INSENSITIVE_ORDER);
         };
 

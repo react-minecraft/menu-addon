@@ -2,7 +2,7 @@ package com.g4vrk.menuAddon.command.argument;
 
 import com.g4vrk.functionalActions.list.ExecutableActionList;
 import com.g4vrk.functionalActions.parser.ActionParser;
-import com.g4vrk.functionalConfiguration.Config;
+import com.g4vrk.config.Config;
 import com.g4vrk.menuAddon.ReactMenuAddon;
 import com.g4vrk.menuAddon.menu.MenuManager;
 import com.g4vrk.react.api.Factory;

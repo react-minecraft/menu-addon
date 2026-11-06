@@ -9,7 +9,6 @@ public final class AddonSettings {
     private final String permission;
     private final boolean includeEmptyHistory;
     private final String probabilityFormat;
-    private final String confidenceFormat;
     private final ElapsedTimeFormat elapsedTimeFormat;
 
     public AddonSettings(
@@ -28,10 +27,6 @@ public final class AddonSettings {
         this.includeEmptyHistory = node.node("include-empty-history").getBoolean(false);
         this.probabilityFormat = ConfigurationUtil.decimalFormat(
                 node.node("format", "probability"),
-                "0.00000"
-        );
-        this.confidenceFormat = ConfigurationUtil.decimalFormat(
-                node.node("format", "confidence"),
                 "0.00000"
         );
         this.elapsedTimeFormat = new ElapsedTimeFormat(
@@ -53,10 +48,6 @@ public final class AddonSettings {
 
     public @NotNull String probabilityFormat() {
         return this.probabilityFormat;
-    }
-
-    public @NotNull String confidenceFormat() {
-        return this.confidenceFormat;
     }
 
     public @NotNull ElapsedTimeFormat elapsedTimeFormat() {
