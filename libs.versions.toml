@@ -4,7 +4,7 @@ paper-api = "1.19.4-R0.1-SNAPSHOT"
 minecraft = "1.19.4"
 
 # React commit on react-minecraft/plugin (feat/vector-prewiew), built by JitPack.
-react = "bd99742"
+react = "6661916"
 
 packetevents = "2.13.0"
 configurate = "4.2.0"
