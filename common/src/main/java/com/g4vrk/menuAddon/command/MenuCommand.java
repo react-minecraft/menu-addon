@@ -62,16 +62,22 @@ public final class MenuCommand {
             final @NotNull String literal,
             final @NotNull String permission
     ) {
-        commands.register(ROOT, commands.command(ROOT)
-                .literal(literal)
-                .permission(permission)
-                .handler(context -> open(context.sender())));
+        commands.register(
+                ROOT,
+                commands.command(ROOT)
+                        .literal(literal)
+                        .permission(permission)
+                        .handler(context -> open(context.sender()))
+        );
 
-        commands.register(ROOT, commands.command(ROOT)
-                .literal(literal)
-                .literal("reload")
-                .permission(permission)
-                .handler(context -> reload(context.sender())));
+        commands.register(
+                ROOT,
+                commands.command(ROOT)
+                        .literal(literal)
+                        .literal("reload")
+                        .permission(permission)
+                        .handler(context -> reload(context.sender()))
+        );
     }
 
     private void open(final @NotNull CommandSender sender) {
