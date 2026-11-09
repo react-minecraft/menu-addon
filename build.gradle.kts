@@ -102,6 +102,7 @@ subprojects {
                 "description" to description,
                 "name" to rootProject.name
             )
+            inputs.properties(props)
             filesMatching("react-addon.yml") {
                 expand(props)
             }
