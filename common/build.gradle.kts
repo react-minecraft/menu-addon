@@ -11,7 +11,10 @@ dependencies {
 
     compileOnly(libs.paper.api)
 
-    compileOnly(libs.react)
+    compileOnly(libs.react.api)
+    compileOnly(libs.react.common)
+    compileOnly(libs.actions)
+    compileOnly(libs.schedula.common)
 
     compileOnly(libs.cloud.paper)
     compileOnly(libs.configurate.yaml)

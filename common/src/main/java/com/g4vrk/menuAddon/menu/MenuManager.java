@@ -7,10 +7,10 @@ import com.g4vrk.menuAddon.config.SelectedTargetConfiguration;
 import com.g4vrk.menuAddon.config.TargetSelectorConfiguration;
 import com.g4vrk.menuAddon.text.MenuTextRenderer;
 import com.g4vrk.menuAddon.util.InventoryViewCompat;
-import com.g4vrk.react.React;
-import com.g4vrk.react.history.entry.InferenceHistoryEntry;
-import com.g4vrk.react.player.ReactPlayer;
-import com.g4vrk.react.player.registry.PlayerRegistry;
+import com.g4vrk.react.api.player.HistoryEntry;
+import com.g4vrk.react.api.player.TrackedPlayer;
+import com.g4vrk.react.api.player.registry.TrackedPlayerRegistry;
+import com.g4vrk.react.api.text.TextFormatter;
 import net.kyori.adventure.audience.Audience;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
@@ -29,7 +29,8 @@ import java.util.UUID;
 
 public final class MenuManager implements MenuActionExecutor.Navigator {
 
-    private final PlayerRegistry playerRegistry;
+    private final TrackedPlayerRegistry playerRegistry;
+    private final TextFormatter text;
     private final MenuActionExecutor actionExecutor;
 
     private AddonSettings settings;
@@ -38,15 +39,17 @@ public final class MenuManager implements MenuActionExecutor.Navigator {
     private MenuTextRenderer renderer;
 
     public MenuManager(
-            final @NotNull PlayerRegistry playerRegistry,
+            final @NotNull TrackedPlayerRegistry playerRegistry,
             final @NotNull ActionParser<Audience> actionParser,
+            final @NotNull TextFormatter text,
             final @NotNull Logger logger,
             final @NotNull AddonSettings settings,
             final @NotNull TargetSelectorConfiguration targetSelectorConfig,
             final @NotNull SelectedTargetConfiguration selectedTargetConfig
     ) {
         this.playerRegistry = playerRegistry;
-        this.actionExecutor = new MenuActionExecutor(actionParser, React.INSTANCE.getSerializers().universalSerializer(), logger, this);
+        this.text = text;
+        this.actionExecutor = new MenuActionExecutor(actionParser, text, logger, this);
         this.apply(settings, targetSelectorConfig, selectedTargetConfig);
     }
 
@@ -69,7 +72,7 @@ public final class MenuManager implements MenuActionExecutor.Navigator {
             return;
         }
 
-        final List<ReactPlayer> targets = this.targets();
+        final List<TrackedPlayer> targets = this.targets();
         final List<Integer> contentSlots = contentSlots(
                 this.targetSelectorConfig.allowedSlots(),
                 this.targetSelectorConfig.items()
@@ -97,10 +100,10 @@ public final class MenuManager implements MenuActionExecutor.Navigator {
     @Override
     public void openSelectedTarget(
             final @NotNull Player viewer,
-            final @NotNull ReactPlayer target,
+            final @NotNull TrackedPlayer target,
             final int requestedPage
     ) {
-        if (!this.canView(viewer) || !target.bukkitPlayer.isOnline()) {
+        if (!this.canView(viewer) || !target.bukkit().isOnline()) {
             return;
         }
 
@@ -116,7 +119,7 @@ public final class MenuManager implements MenuActionExecutor.Navigator {
                 MenuHolder.Type.SELECTED_TARGET,
                 page,
                 totalPages,
-                target.getUniqueId()
+                target.uniqueId()
         );
         final Inventory inventory = Bukkit.createInventory(
                 holder,
@@ -142,7 +145,7 @@ public final class MenuManager implements MenuActionExecutor.Navigator {
     }
 
     public void refresh(
-            final @NotNull ReactPlayer changedTarget
+            final @NotNull TrackedPlayer changedTarget
     ) {
         if (!Bukkit.isPrimaryThread()) {
             throw new IllegalStateException("Open menus may only be refreshed on the server thread");
@@ -160,7 +163,7 @@ public final class MenuManager implements MenuActionExecutor.Navigator {
             }
 
             if (holder.type() == MenuHolder.Type.SELECTED_TARGET
-                    && changedTarget.getUniqueId().equals(holder.targetId())
+                    && changedTarget.uniqueId().equals(holder.targetId())
                     && this.selectedTargetConfig.entryItem().updateOnFailure()) {
                 this.renderSelectedTarget(holder, viewer, changedTarget);
             }
@@ -186,7 +189,7 @@ public final class MenuManager implements MenuActionExecutor.Navigator {
                 continue;
             }
 
-            final ReactPlayer target = this.playerRegistry.getPlayer(openMenu.targetId());
+            final TrackedPlayer target = this.playerRegistry.get(openMenu.targetId());
 
             if (target == null) {
                 this.openTargetSelector(openMenu.viewer(), 0);
@@ -215,14 +218,14 @@ public final class MenuManager implements MenuActionExecutor.Navigator {
         this.settings = settings;
         this.targetSelectorConfig = targetSelectorConfig;
         this.selectedTargetConfig = selectedTargetConfig;
-        this.renderer = new MenuTextRenderer(React.INSTANCE.getSerializers().universalSerializer(), settings);
+        this.renderer = new MenuTextRenderer(this.text, settings);
     }
 
     private void renderTargetSelector(
             final @NotNull MenuHolder holder,
             final @NotNull Player viewer
     ) {
-        final List<ReactPlayer> targets = this.targets();
+        final List<TrackedPlayer> targets = this.targets();
         final List<Integer> slots = contentSlots(
                 this.targetSelectorConfig.allowedSlots(),
                 this.targetSelectorConfig.items()
@@ -244,7 +247,7 @@ public final class MenuManager implements MenuActionExecutor.Navigator {
 
         for (int index = 0; index < amount; index++) {
             final int slot = slots.get(index);
-            final ReactPlayer target = targets.get(offset + index);
+            final TrackedPlayer target = targets.get(offset + index);
             holder.getInventory().setItem(
                     slot,
                     this.renderer.targetItem(this.targetSelectorConfig.targetItem(), target)
@@ -263,9 +266,9 @@ public final class MenuManager implements MenuActionExecutor.Navigator {
     private void renderSelectedTarget(
             final @NotNull MenuHolder holder,
             final @NotNull Player viewer,
-            final @NotNull ReactPlayer target
+            final @NotNull TrackedPlayer target
     ) {
-        final List<List<InferenceHistoryEntry>> groups = historyGroups(
+        final List<List<HistoryEntry>> groups = historyGroups(
                 target,
                 this.selectedTargetConfig.entryItem().failuresPerEntry()
         );
@@ -314,7 +317,7 @@ public final class MenuManager implements MenuActionExecutor.Navigator {
             final @NotNull MenuHolder holder,
             final @NotNull Map<String, ItemConfiguration> items,
             final @NotNull Map<String, String> placeholders,
-            final ReactPlayer target
+            final TrackedPlayer target
     ) {
         for (final ItemConfiguration item : items.values()) {
             for (final int slot : item.slots()) {
@@ -336,7 +339,7 @@ public final class MenuManager implements MenuActionExecutor.Navigator {
             final int slot,
             final @NotNull List<String> leftClickActions,
             final @NotNull List<String> rightClickActions,
-            final ReactPlayer target,
+            final TrackedPlayer target,
             final @NotNull Map<String, String> placeholders
     ) {
         holder.bind(slot, (viewer, clickType) -> {
@@ -364,34 +367,34 @@ public final class MenuManager implements MenuActionExecutor.Navigator {
         });
     }
 
-    private @NotNull List<ReactPlayer> targets() {
-        final List<ReactPlayer> targets = new ArrayList<>();
+    private @NotNull List<TrackedPlayer> targets() {
+        final List<TrackedPlayer> targets = new ArrayList<>();
 
-        for (final ReactPlayer target : this.playerRegistry.all()) {
-            if (this.targetSelectorConfig.onlyOnline() && !target.bukkitPlayer.isOnline()) {
+        for (final TrackedPlayer target : this.playerRegistry) {
+            if (this.targetSelectorConfig.onlyOnline() && !target.bukkit().isOnline()) {
                 continue;
             }
 
-            if (!this.settings.includeEmptyHistory() && target.inferenceHistory.size() == 0) {
+            if (!this.settings.includeEmptyHistory() && target.history().isEmpty()) {
                 continue;
             }
 
             targets.add(target);
         }
 
-        Comparator<ReactPlayer> comparator = switch (this.targetSelectorConfig.sortBy()) {
+        Comparator<TrackedPlayer> comparator = switch (this.targetSelectorConfig.sortBy()) {
             case LATEST_FAILURE -> Comparator.comparingLong(MenuManager::latestTimestamp);
             case AVERAGE_PROBABILITY -> Comparator.comparingDouble(
-                    target -> target.inferenceStatistic.averageProbability()
+                    MenuTextRenderer::averageProbability
             );
-            case NAME -> Comparator.comparing(ReactPlayer::getName, String.CASE_INSENSITIVE_ORDER);
+            case NAME -> Comparator.comparing(TrackedPlayer::name, String.CASE_INSENSITIVE_ORDER);
         };
 
         if (this.targetSelectorConfig.descending()) {
             comparator = comparator.reversed();
         }
 
-        targets.sort(comparator.thenComparing(ReactPlayer::getName, String.CASE_INSENSITIVE_ORDER));
+        targets.sort(comparator.thenComparing(TrackedPlayer::name, String.CASE_INSENSITIVE_ORDER));
         return targets;
     }
 
@@ -414,18 +417,18 @@ public final class MenuManager implements MenuActionExecutor.Navigator {
         return result;
     }
 
-    private static @NotNull List<List<InferenceHistoryEntry>> historyGroups(
-            final @NotNull ReactPlayer target,
+    private static @NotNull List<List<HistoryEntry>> historyGroups(
+            final @NotNull TrackedPlayer target,
             final int groupSize
     ) {
-        final InferenceHistoryEntry[] history = target.inferenceHistory.entries();
-        final List<InferenceHistoryEntry> newestFirst = new ArrayList<>(history.length);
+        final List<HistoryEntry> history = target.history();
+        final List<HistoryEntry> newestFirst = new ArrayList<>(history.size());
 
-        for (int index = history.length - 1; index >= 0; index--) {
-            newestFirst.add(history[index]);
+        for (int index = history.size() - 1; index >= 0; index--) {
+            newestFirst.add(history.get(index));
         }
 
-        final List<List<InferenceHistoryEntry>> groups = new ArrayList<>();
+        final List<List<HistoryEntry>> groups = new ArrayList<>();
 
         for (int start = 0; start < newestFirst.size(); start += groupSize) {
             groups.add(List.copyOf(
@@ -488,10 +491,10 @@ public final class MenuManager implements MenuActionExecutor.Navigator {
     }
 
     private static long latestTimestamp(
-            final @NotNull ReactPlayer target
+            final @NotNull TrackedPlayer target
     ) {
-        final InferenceHistoryEntry latest = target.inferenceHistory.latest();
-        return latest == null ? 0L : latest.getTimestamp();
+        final List<HistoryEntry> history = target.history();
+        return history.isEmpty() ? 0L : history.get(history.size() - 1).timestamp();
     }
 
     private record OpenMenu(

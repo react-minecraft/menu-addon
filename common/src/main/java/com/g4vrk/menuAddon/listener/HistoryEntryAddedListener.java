@@ -1,37 +1,33 @@
 package com.g4vrk.menuAddon.listener;
 
 import com.g4vrk.menuAddon.menu.MenuManager;
-import com.g4vrk.react.React;
-import com.g4vrk.react.api.event.InferenceHistoryEntryAddedEvent;
+import com.g4vrk.react.api.event.EventPriority;
+import com.g4vrk.react.api.event.Subscribe;
+import com.g4vrk.react.api.event.check.InferenceResultEvent;
+import com.g4vrk.react.api.player.TrackedPlayer;
 import com.g4vrk.schedula.task.TickSchedule;
-import org.bukkit.Bukkit;
-import org.bukkit.event.EventHandler;
-import org.bukkit.event.EventPriority;
-import org.bukkit.event.Listener;
+import com.g4vrk.schedula.task.scheduler.Scheduler;
 import org.jetbrains.annotations.NotNull;
 
-public final class HistoryEntryAddedListener implements Listener {
+/**
+ * Redraws open menus when a new model result reaches a player's history.
+ */
+public final class HistoryEntryAddedListener {
 
     private final MenuManager menuManager;
+    private final Scheduler scheduler;
 
     public HistoryEntryAddedListener(
-            final @NotNull MenuManager menuManager
+            final @NotNull MenuManager menuManager,
+            final @NotNull Scheduler scheduler
     ) {
         this.menuManager = menuManager;
+        this.scheduler = scheduler;
     }
 
-    @EventHandler(priority = EventPriority.MONITOR)
-    public void onInferenceHistoryEntryAdded(
-            final @NotNull InferenceHistoryEntryAddedEvent event
-    ) {
-        if (Bukkit.isPrimaryThread()) {
-            this.menuManager.refresh(event.player());
-            return;
-        }
-
-        React.INSTANCE.getScheduler().schedule(
-                () -> this.menuManager.refresh(event.player()),
-                TickSchedule.instant()
-        );
+    @Subscribe(priority = EventPriority.MONITOR)
+    public void onInferenceResult(final @NotNull InferenceResultEvent event) {
+        final TrackedPlayer player = event.check().player();
+        this.scheduler.schedule(() -> this.menuManager.refresh(player), TickSchedule.instant());
     }
 }

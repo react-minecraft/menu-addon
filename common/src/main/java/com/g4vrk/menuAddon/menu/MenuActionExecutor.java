@@ -1,14 +1,14 @@
 package com.g4vrk.menuAddon.menu;
 
 import com.g4vrk.functionalActions.ExecutableAction;
-import com.g4vrk.functionalActions.defaults.DefaultActions;
+import com.g4vrk.functionalActions.defaults.DefaultActionSet;
 import com.g4vrk.functionalActions.parser.ActionParser;
 import com.g4vrk.functionalActions.parser.impl.SimpleActionParser;
 import com.g4vrk.functionalActions.registry.ActionRegistry;
 import com.g4vrk.functionalActions.registry.impl.SimpleActionRegistry;
-import com.g4vrk.react.parse.time.TimeParser;
-import com.g4vrk.react.player.ReactPlayer;
-import com.g4vrk.text.serializer.impl.String2ComponentSerializer;
+import com.g4vrk.react.api.util.TimeParser;
+import com.g4vrk.react.api.player.TrackedPlayer;
+import com.g4vrk.react.api.text.TextFormatter;
 import net.kyori.adventure.audience.Audience;
 import org.bukkit.GameMode;
 import org.bukkit.entity.Player;
@@ -32,7 +32,7 @@ public final class MenuActionExecutor {
 
     public MenuActionExecutor(
             final @NotNull ActionParser<Audience> actionParser,
-            final @NotNull String2ComponentSerializer serializer,
+            final @NotNull TextFormatter text,
             final @NotNull Logger logger,
             final @NotNull Navigator navigator
     ) {
@@ -41,11 +41,11 @@ public final class MenuActionExecutor {
         this.navigator = navigator;
 
         final ActionRegistry<Player> playerActionRegistry = new SimpleActionRegistry<>(true);
-        DefaultActions.Player.registerDefaults(
+        DefaultActionSet.Player.registerDefaults(
                 playerActionRegistry,
-                serializer::serialize,
+                value -> text.format(value),
                 ";",
-                s -> TimeParser.parseDuration(s).toMillis() / 50
+                s -> TimeParser.parse(s).toMillis() / 50
         );
         this.playerActionParser = new SimpleActionParser<>(playerActionRegistry);
     }
@@ -122,10 +122,10 @@ public final class MenuActionExecutor {
             }
 
             case "tp-to-target", "teleport-to-target" -> {
-                final ReactPlayer target = context.target();
+                final TrackedPlayer target = context.target();
 
-                if (target != null && target.bukkitPlayer.isOnline()) {
-                    context.viewer().teleport(target.bukkitPlayer);
+                if (target != null && target.bukkit().isOnline()) {
+                    context.viewer().teleport(target.bukkit());
                 }
 
                 yield true;
@@ -185,7 +185,7 @@ public final class MenuActionExecutor {
 
     public record Context(
             @NotNull Player viewer,
-            @Nullable ReactPlayer target,
+            @Nullable TrackedPlayer target,
             @NotNull MenuHolder.Type menuType,
             int page,
             int totalPages,
@@ -197,7 +197,7 @@ public final class MenuActionExecutor {
 
         void openTargetSelector(@NotNull Player viewer, int page);
 
-        void openSelectedTarget(@NotNull Player viewer, @NotNull ReactPlayer target, int page);
+        void openSelectedTarget(@NotNull Player viewer, @NotNull TrackedPlayer target, int page);
 
         void switchPage(@NotNull Context context, int page);
     }
