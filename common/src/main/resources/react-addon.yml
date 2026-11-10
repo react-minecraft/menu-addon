@@ -6,3 +6,7 @@ mainClass: com.g4vrk.menuAddon.ReactMenuAddon
 api-version: 2
 
 description: '${description}'
+
+github:
+  repository: react-minecraft/menu-addon
+  updatable: true
