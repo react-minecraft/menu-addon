@@ -4,7 +4,7 @@ paper-api = "1.19.4-R0.1-SNAPSHOT"
 minecraft = "1.19.4"
 
 # React commit on react-minecraft/plugin, built by JitPack. A sibling ../plugin checkout replaces it locally.
-react = "f5773cd"
+react = "7a0f88b"
 actions = "2.2.0"
 schedula = "1.1.2"
 
