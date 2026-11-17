@@ -250,16 +250,21 @@ public final class MenuTextRenderer {
             final @NotNull TrackedPlayer target,
             final @NotNull List<HistoryEntry> history
     ) {
+
         final Map<String, String> placeholders = this.menuPlaceholders(0, 1, target);
         final double average = averageProbability(history);
         final String probability = this.format(average, this.settings.probabilityFormat());
         final long latestInference = history.isEmpty() ? 0L : history.get(history.size() - 1).timestamp();
-        // The public API exposes whether a fight is in progress, not when its last hit landed.
+        /*
+         * Keep the legacy combat estimate available for existing custom templates.
+         */
         final long latestTimestamp = target.inCombat() ? System.currentTimeMillis() : latestInference;
 
         placeholders.put("target.history-size", Integer.toString(history.size()));
         placeholders.put("target.last-hit", Long.toString(latestTimestamp));
         placeholders.put("target.last-hit:formatted", this.elapsedTimeFormatter.formatTimestamp(latestTimestamp));
+        placeholders.put("target.last-analysis", Long.toString(latestInference));
+        placeholders.put("target.last-analysis:formatted", this.elapsedTimeFormatter.formatTimestamp(latestInference));
         placeholders.put("target.statistic.average-probability", probability);
         placeholders.put(
                 "target.statistic.average-probability:colored",
@@ -267,6 +272,7 @@ public final class MenuTextRenderer {
         );
 
         return placeholders;
+
     }
 
     private void putGroupStatistic(

@@ -15,10 +15,9 @@ import net.kyori.adventure.audience.Audience;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.spongepowered.configurate.CommentedConfigurationNode;
-import org.spongepowered.configurate.yaml.YamlConfigurationLoader;
+import org.spongepowered.configurate.ConfigurationNode;
 
 import java.io.IOException;
-import java.nio.file.Files;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -41,10 +40,6 @@ public final class ReactMenuAddon extends JavaAddon {
 
     @Override
     public void onEnable() {
-
-        saveDefault(MAIN_CONFIG);
-        saveDefault(TARGET_SELECTOR);
-        saveDefault(SELECTED_TARGET);
 
         final AddonEnvironment environment = environment();
         final ActionParser<Audience> parser = environment.actions();
@@ -131,30 +126,28 @@ public final class ReactMenuAddon extends JavaAddon {
 
     private @NotNull LoadedModules load() {
 
-        final CommentedConfigurationNode main = read(MAIN_CONFIG);
+        final CommentedConfigurationNode main = read(MAIN_CONFIG, false);
         return new LoadedModules(
                 main,
                 new AddonSettings(main.node("settings")),
-                new TargetSelectorConfiguration(read(TARGET_SELECTOR)),
-                new SelectedTargetConfiguration(read(SELECTED_TARGET))
+                new TargetSelectorConfiguration(read(TARGET_SELECTOR, true)),
+                new SelectedTargetConfiguration(read(SELECTED_TARGET, true))
         );
 
     }
 
-    private @NotNull CommentedConfigurationNode read(final @NotNull String name) {
+    private @NotNull CommentedConfigurationNode read(final @NotNull String name, final boolean keepMissing) {
 
+        final String language = "en".equalsIgnoreCase(System.getProperty("user.language")) ? "en" : "ru";
+        final var builder = environment().configs().file(name, ConfigurationNode.class)
+                .defaults(getClass().getClassLoader(), language + "/" + name);
+        if (keepMissing) {
+            builder.keepMissing();
+        }
         try {
-            return YamlConfigurationLoader.builder().path(directory().resolve(name)).build().load();
+            return builder.build().loadNode();
         } catch (final IOException exception) {
             throw new IllegalStateException("Could not load " + name, exception);
-        }
-
-    }
-
-    private void saveDefault(final @NotNull String name) {
-
-        if (!Files.exists(directory().resolve(name))) {
-            saveResource(name, false);
         }
 
     }
@@ -166,4 +159,5 @@ public final class ReactMenuAddon extends JavaAddon {
             @NotNull SelectedTargetConfiguration selectedTarget
     ) {
     }
+
 }

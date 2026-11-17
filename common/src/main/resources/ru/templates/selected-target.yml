@@ -30,7 +30,7 @@ entry-template:
 
     otherwise: white_stained_glass_pane
 
-  name: " <color:#eb2544>[⚡] <color:#f0f0f0>Средняя вероятность: {statistic.average-probability:colored}  "
+  name: " <color:#14b8a6>[⚡] <color:#f0f0f0>Средняя вероятность: {statistic.average-probability:colored}  "
 
   lore:
 
@@ -54,13 +54,13 @@ items:
 
     material: tipped_arrow
 
-    color: '#eb2544'
+    color: '#14b8a6'
 
     slots:
 
       - 51
 
-    name: " <color:#f0f0f0>Следующая страница <color:#eb2544>[→]  "
+    name: " <color:#f0f0f0>Следующая страница <color:#14b8a6>[→]  "
 
     on-left-click:
 
@@ -70,13 +70,13 @@ items:
 
     material: tipped_arrow
 
-    color: '#eb2544'
+    color: '#14b8a6'
 
     slots:
 
       - 47
 
-    name: " <color:#eb2544>[←] <color:#f0f0f0>Предыдущая страница  "
+    name: " <color:#14b8a6>[←] <color:#f0f0f0>Предыдущая страница  "
 
     on-left-click:
 
@@ -90,7 +90,7 @@ items:
 
       - 49
 
-    name: " <color:#eb2544>[←] <color:#f0f0f0>Вернуться к нарушителям  "
+    name: " <color:#14b8a6>[←] <color:#f0f0f0>Вернуться к нарушителям  "
 
     on-left-click:
 
@@ -98,7 +98,7 @@ items:
 
   filler:
 
-    material: orange_stained_glass_pane
+    material: cyan_stained_glass_pane
 
     name: '&r'
 
@@ -113,3 +113,6 @@ items:
       - 48
       - 50
       - 52-53
+
+# Не меняйте версию конфигурации.
+config-version: 1

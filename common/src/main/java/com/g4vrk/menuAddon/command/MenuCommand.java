@@ -41,20 +41,25 @@ public final class MenuCommand {
             final @NotNull Supplier<CompletableFuture<Void>> reload,
             final @NotNull ConfigurationNode config
     ) {
+
         this.parser = parser;
         this.menus = menus;
         this.scheduler = scheduler;
         this.reload = reload;
         this.reload(config);
+
     }
 
     public void reload(final @NotNull ConfigurationNode config) {
+
         this.messages = new Messages(
                 actions(config, "open", "on-console"),
                 actions(config, "open", "on-denied"),
                 actions(config, "reload", "on-start"),
-                actions(config, "reload", "on-finish")
+                actions(config, "reload", "on-finish"),
+                actions(config, "reload", "on-failure")
         );
+
     }
 
     public void register(
@@ -62,6 +67,7 @@ public final class MenuCommand {
             final @NotNull String literal,
             final @NotNull String permission
     ) {
+
         commands.register(
                 ROOT,
                 commands.command(ROOT)
@@ -78,9 +84,11 @@ public final class MenuCommand {
                         .permission(permission)
                         .handler(context -> reload(context.sender()))
         );
+
     }
 
     private void open(final @NotNull CommandSender sender) {
+
         final Messages current = this.messages;
 
         if (!(sender instanceof Player player)) {
@@ -93,34 +101,44 @@ public final class MenuCommand {
             return;
         }
 
-        // Inventories belong to the player's region on Folia.
         this.scheduler.scheduleEntity(player, () -> this.menus.openTargetSelector(player, 0), TickSchedule.instant());
+
     }
 
     private void reload(final @NotNull CommandSender sender) {
+
         this.messages.reloadStart().run(sender);
-        this.reload.get().thenRun(() -> this.scheduler.schedule(
-                () -> this.messages.reloadFinish().run(sender),
-                TickSchedule.instant()
-        ));
+        this.reload.get().whenComplete((ignored, failure) -> {
+            final ExecutableActionList<? super Audience> response = failure == null ? this.messages.reloadFinish() : this.messages.reloadFailure();
+            final Runnable notify = () -> response.run(sender);
+            if (sender instanceof Player player) {
+                this.scheduler.scheduleEntity(player, notify, TickSchedule.instant());
+            } else {
+                this.scheduler.schedule(notify, TickSchedule.instant());
+            }
+        });
+
     }
 
-    private ExecutableActionList<? super Audience> actions(
+    private @NotNull ExecutableActionList<? super Audience> actions(
             final @NotNull ConfigurationNode config,
             final @NotNull String... path
     ) {
+
         try {
             return this.parser.parseAll(config.node((Object[]) path).getList(String.class, List.of()));
         } catch (final SerializationException exception) {
             throw new IllegalStateException("Could not read the actions at " + String.join(".", path), exception);
         }
+
     }
 
     private record Messages(
             @NotNull ExecutableActionList<? super Audience> console,
             @NotNull ExecutableActionList<? super Audience> denied,
             @NotNull ExecutableActionList<? super Audience> reloadStart,
-            @NotNull ExecutableActionList<? super Audience> reloadFinish
+            @NotNull ExecutableActionList<? super Audience> reloadFinish,
+            @NotNull ExecutableActionList<? super Audience> reloadFailure
     ) {
     }
 

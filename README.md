@@ -1,6 +1,6 @@
 <div align="center">
 
-<a href="https://git.io/typing-svg"><img src="https://readme-typing-svg.demolab.com?font=Manrope&weight=700&size=38&pause=1000&color=EB2544&background=FFFFFF00&center=true&vCenter=true&width=700&lines=Menu+Addon" alt="Menu Addon Typing SVG"/></a>
+<a href="https://git.io/typing-svg"><img src="https://readme-typing-svg.demolab.com?font=Manrope&weight=700&size=38&pause=1000&color=14B8A6&background=FFFFFF00&center=true&vCenter=true&width=700&lines=Menu+Addon" alt="Menu Addon Typing SVG"/></a>
 
 <p>Меню истории проверок для React</p>
 
@@ -48,9 +48,9 @@ settings:
 
 ## Установка
 
-1. Соберите аддон или скачайте jar из [GitHub Nightly](https://github.com/react-minecraft/menu-addon/releases/tag/nightly). Нужен React с API 2.
+1. Соберите аддон или скачайте jar из [GitHub Releases](https://github.com/react-minecraft/menu-addon/releases/latest). Нужен React с API 2.
 2. Положите `menu-addon-<версия>.jar` в `plugins/React/addons/`.
-3. Перезапустите сервер или выполните `/react reboot addons`. Конфиг появится в `plugins/React/addons/ReactMenuAddon/`.
+3. Перезапустите сервер или выполните `/react reboot addons`. Конфиг появится в `plugins/React/addons/menu-addon/`.
 
 ## Сборка
 
