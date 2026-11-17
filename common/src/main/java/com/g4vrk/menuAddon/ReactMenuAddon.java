@@ -55,6 +55,7 @@ public final class ReactMenuAddon extends JavaAddon {
                 parser,
                 environment.text(),
                 logger(),
+                environment.scheduler(),
                 configuration.settings(),
                 configuration.targetSelector(),
                 configuration.selectedTarget()

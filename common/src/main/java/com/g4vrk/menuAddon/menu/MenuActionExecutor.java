@@ -8,6 +8,7 @@ import com.g4vrk.functionalActions.registry.ActionRegistry;
 import com.g4vrk.functionalActions.registry.impl.SimpleActionRegistry;
 import com.g4vrk.react.api.util.TimeParser;
 import com.g4vrk.react.api.player.TrackedPlayer;
+import com.g4vrk.react.api.player.registry.TrackedPlayerRegistry;
 import com.g4vrk.react.api.text.TextFormatter;
 import net.kyori.adventure.audience.Audience;
 import org.bukkit.GameMode;
@@ -28,14 +29,17 @@ public final class MenuActionExecutor {
     private final ActionParser<Player> playerActionParser;
     private final Logger logger;
     private final Navigator navigator;
+    private final TrackedPlayerRegistry playerRegistry;
     private final Set<String> reportedUnknownActions = ConcurrentHashMap.newKeySet();
 
     public MenuActionExecutor(
+            final @NotNull TrackedPlayerRegistry playerRegistry,
             final @NotNull ActionParser<Audience> actionParser,
             final @NotNull TextFormatter text,
             final @NotNull Logger logger,
             final @NotNull Navigator navigator
     ) {
+        this.playerRegistry = playerRegistry;
         this.actionParser = actionParser;
         this.logger = logger;
         this.navigator = navigator;
@@ -124,7 +128,7 @@ public final class MenuActionExecutor {
             case "tp-to-target", "teleport-to-target" -> {
                 final TrackedPlayer target = context.target();
 
-                if (target != null && target.bukkit().isOnline()) {
+                if (target != null && this.playerRegistry.get(target.uniqueId()) == target) {
                     context.viewer().teleport(target.bukkit());
                 }
 
