@@ -77,7 +77,8 @@ public final class MenuTextRenderer {
 
     public @NotNull ItemStack targetItem(
             final @NotNull TargetSelectorConfiguration.TargetItem config,
-            final @NotNull TrackedPlayer target
+            final @NotNull TrackedPlayer target,
+            final @NotNull List<HistoryEntry> history
     ) {
         final Material material = config.usePlayerHead() ? Material.PLAYER_HEAD : config.material();
         final ItemStack item = new ItemStack(material);
@@ -87,7 +88,6 @@ public final class MenuTextRenderer {
             return item;
         }
 
-        final List<HistoryEntry> history = target.history();
         final Map<String, String> placeholders = this.targetPlaceholders(target, history);
 
         meta.displayName(this.component(config.name(), placeholders));

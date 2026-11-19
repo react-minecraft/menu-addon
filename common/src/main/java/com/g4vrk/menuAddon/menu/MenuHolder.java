@@ -9,6 +9,8 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.HashMap;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -17,6 +19,7 @@ public final class MenuHolder implements InventoryHolder {
     private final Type type;
     private final UUID targetId;
     private final Map<Integer, ClickHandler> clickHandlers = new HashMap<>();
+    private final List<Runnable> timeUpdates = new ArrayList<>();
 
     private Inventory inventory;
     private @Nullable Task refreshTask;
@@ -61,6 +64,7 @@ public final class MenuHolder implements InventoryHolder {
         this.page = page;
         this.totalPages = totalPages;
         this.clickHandlers.clear();
+        this.timeUpdates.clear();
         this.getInventory().clear();
     }
 
@@ -74,6 +78,20 @@ public final class MenuHolder implements InventoryHolder {
     public @Nullable ClickHandler clickHandler(final int slot) {
 
         return this.clickHandlers.get(slot);
+
+    }
+
+    public void addTimeUpdate(final @NotNull Runnable update) {
+
+        this.timeUpdates.add(update);
+
+    }
+
+    public void updateTime() {
+
+        for (final Runnable update : this.timeUpdates) {
+            update.run();
+        }
 
     }
 

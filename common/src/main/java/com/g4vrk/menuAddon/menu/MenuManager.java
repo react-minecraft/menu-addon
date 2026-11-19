@@ -242,10 +242,15 @@ public final class MenuManager implements MenuActionExecutor.Navigator {
         for (int index = 0; index < amount; index++) {
             final int slot = slots.get(index);
             final TrackedPlayer target = targets.get(offset + index);
+            final List<HistoryEntry> history = target.history();
             holder.getInventory().setItem(
                     slot,
-                    state.renderer().targetItem(state.targetSelectorConfig().targetItem(), target)
+                    state.renderer().targetItem(state.targetSelectorConfig().targetItem(), target, history)
             );
+            holder.addTimeUpdate(() -> holder.getInventory().setItem(
+                    slot,
+                    state.renderer().targetItem(state.targetSelectorConfig().targetItem(), target, history)
+            ));
             this.bind(
                     holder,
                     slot,
@@ -289,15 +294,20 @@ public final class MenuManager implements MenuActionExecutor.Navigator {
 
         for (int index = 0; index < amount; index++) {
             final int slot = slots.get(index);
+            final List<HistoryEntry> entries = groups.get(offset + index);
             holder.getInventory().setItem(
                     slot,
                     state.renderer().historyGroupItem(
                             state.selectedTargetConfig().entryItem(),
                             target,
-                            groups.get(offset + index),
+                            entries,
                             menuPlaceholders
                     )
             );
+            holder.addTimeUpdate(() -> holder.getInventory().setItem(
+                    slot,
+                    state.renderer().historyGroupItem(state.selectedTargetConfig().entryItem(), target, entries, menuPlaceholders)
+            ));
             this.bind(
                     holder,
                     slot,
@@ -374,11 +384,6 @@ public final class MenuManager implements MenuActionExecutor.Navigator {
         final List<TrackedPlayer> targets = new ArrayList<>();
 
         for (final TrackedPlayer target : this.playerRegistry) {
-            if (state.targetSelectorConfig().onlyOnline()
-                    && !this.playerRegistry.containsKey(target.uniqueId())) {
-                continue;
-            }
-
             if (!state.settings().includeEmptyHistory() && target.history().isEmpty()) {
                 continue;
             }
@@ -489,19 +494,15 @@ public final class MenuManager implements MenuActionExecutor.Navigator {
                 task.cancel();
                 return;
             }
-            if (holder.type() == MenuHolder.Type.TARGET_SELECTOR) {
-                if (state.targetSelectorConfig().targetItem().updateOnFailure()) {
-                    this.renderTargetSelector(holder, viewer, state);
-                }
-            } else {
+            if (holder.type() == MenuHolder.Type.SELECTED_TARGET) {
                 final TrackedPlayer target = this.playerRegistry.get(holder.targetId());
                 if (target == null) {
                     this.openTargetSelector(viewer, 0);
                     task.cancel();
-                } else if (state.selectedTargetConfig().entryItem().updateOnFailure()) {
-                    this.renderSelectedTarget(holder, viewer, target, state);
+                    return;
                 }
             }
+            holder.updateTime();
         }, TickSchedule.repeating(20, 20)));
 
     }
