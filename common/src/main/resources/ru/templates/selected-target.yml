@@ -64,6 +64,7 @@ items:
 
     on-left-click:
 
+      - "[sound] ui.button.click;1.0;1.0"
       - "[switch-to-page] {pagination:next}"
 
   previous:
@@ -80,6 +81,7 @@ items:
 
     on-left-click:
 
+      - "[sound] ui.button.click;1.0;1.0"
       - "[switch-to-page] {pagination:previous}"
 
   back:
@@ -94,6 +96,7 @@ items:
 
     on-left-click:
 
+      - "[sound] ui.button.click;1.0;1.0"
       - "[open-target-selector]"
 
   filler:

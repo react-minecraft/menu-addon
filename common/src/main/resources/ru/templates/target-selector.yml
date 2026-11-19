@@ -63,11 +63,13 @@ target-template:
 
   on-left-click:
 
+    - "[sound] ui.button.click;1.0;1.0"
     - "[gm] 3"
     - "[tp-to-target]"
 
   on-right-click:
 
+    - "[sound] ui.button.click;1.0;1.0"
     - "[select-clicked]"
 
 items:
@@ -86,6 +88,7 @@ items:
 
     on-left-click:
 
+      - "[sound] ui.button.click;1.0;1.0"
       - "[switch-to-page] {pagination:next}"
 
   previous:
@@ -102,6 +105,7 @@ items:
 
     on-left-click:
 
+      - "[sound] ui.button.click;1.0;1.0"
       - "[switch-to-page] {pagination:previous}"
 
 
