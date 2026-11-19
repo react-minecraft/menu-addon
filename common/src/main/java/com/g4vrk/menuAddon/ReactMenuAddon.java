@@ -37,6 +37,8 @@ public final class ReactMenuAddon extends JavaAddon {
 
     private MenuManager menuManager;
     private MenuCommand command;
+    private String registeredLiteral;
+    private String registeredPermission;
 
     @Override
     public void onEnable() {
@@ -44,6 +46,8 @@ public final class ReactMenuAddon extends JavaAddon {
         final AddonEnvironment environment = environment();
         final ActionParser<Audience> parser = environment.actions();
         final LoadedModules configuration = load();
+        this.registeredLiteral = configuration.settings().argumentLiteral();
+        this.registeredPermission = configuration.settings().permission();
 
         this.menuManager = new MenuManager(
                 environment.players(),
@@ -56,7 +60,7 @@ public final class ReactMenuAddon extends JavaAddon {
                 configuration.selectedTarget()
         );
 
-        environment.listeners().register(new MenuListener());
+        environment.listeners().register(new MenuListener(environment.scheduler()));
         environment.listeners().register(new HistoryEntryAddedListener(this.menuManager, environment.scheduler()));
 
         this.command = new MenuCommand(parser, this.menuManager, environment.scheduler(), this::reloadAsync, configuration.main());
@@ -115,6 +119,11 @@ public final class ReactMenuAddon extends JavaAddon {
         if (this.disabled) {
             return;
         }
+        if (!this.registeredLiteral.equals(configuration.settings().argumentLiteral())
+                || !this.registeredPermission.equals(configuration.settings().permission())) {
+            throw new IllegalStateException("Changing the command literal or permission requires an addon restart");
+        }
+        MenuManager.validate(configuration.targetSelector(), configuration.selectedTarget());
         this.command.reload(configuration.main());
         this.menuManager.reload(
                 configuration.settings(),
@@ -138,7 +147,7 @@ public final class ReactMenuAddon extends JavaAddon {
 
     private @NotNull CommentedConfigurationNode read(final @NotNull String name, final boolean keepMissing) {
 
-        final String language = "en".equalsIgnoreCase(System.getProperty("user.language")) ? "en" : "ru";
+        final String language = "ru".equalsIgnoreCase(System.getProperty("user.language")) ? "ru" : "en";
         final var builder = environment().configs().file(name, ConfigurationNode.class)
                 .defaults(getClass().getClassLoader(), language + "/" + name);
         if (keepMissing) {

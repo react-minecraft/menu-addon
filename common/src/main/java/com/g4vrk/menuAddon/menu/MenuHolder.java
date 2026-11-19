@@ -1,5 +1,6 @@
 package com.g4vrk.menuAddon.menu;
 
+import com.g4vrk.schedula.task.Task;
 import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.ClickType;
 import org.bukkit.inventory.Inventory;
@@ -18,6 +19,7 @@ public final class MenuHolder implements InventoryHolder {
     private final Map<Integer, ClickHandler> clickHandlers = new HashMap<>();
 
     private Inventory inventory;
+    private @Nullable Task refreshTask;
     private int page;
     private int totalPages;
 
@@ -69,16 +71,25 @@ public final class MenuHolder implements InventoryHolder {
         this.clickHandlers.put(slot, clickHandler);
     }
 
-    public void click(
-            final @NotNull Player player,
-            final int slot,
-            final @NotNull ClickType clickType
-    ) {
-        final ClickHandler clickHandler = this.clickHandlers.get(slot);
+    public @Nullable ClickHandler clickHandler(final int slot) {
 
-        if (clickHandler != null) {
-            clickHandler.handle(player, clickType);
+        return this.clickHandlers.get(slot);
+
+    }
+
+    public void refreshTask(final @NotNull Task task) {
+
+        this.refreshTask = task;
+
+    }
+
+    public void stopRefresh() {
+
+        if (this.refreshTask != null) {
+            this.refreshTask.cancel();
+            this.refreshTask = null;
         }
+
     }
 
     public @NotNull Type type() {

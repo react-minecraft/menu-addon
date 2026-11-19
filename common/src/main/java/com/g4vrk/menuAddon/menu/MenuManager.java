@@ -31,8 +31,6 @@ import java.util.UUID;
 
 public final class MenuManager implements MenuActionExecutor.Navigator {
 
-    private static final boolean FOLIA = isFolia();
-
     private final TrackedPlayerRegistry playerRegistry;
     private final TextFormatter text;
     private final MenuActionExecutor actionExecutor;
@@ -58,6 +56,7 @@ public final class MenuManager implements MenuActionExecutor.Navigator {
                 actionParser,
                 text,
                 logger,
+                scheduler,
                 this
         );
         this.apply(settings, targetSelectorConfig, selectedTargetConfig);
@@ -107,6 +106,7 @@ public final class MenuManager implements MenuActionExecutor.Navigator {
         holder.attach(inventory);
         this.renderTargetSelector(holder, viewer, state);
         viewer.openInventory(inventory);
+        this.startRefresh(viewer, holder);
     }
 
     @Override
@@ -147,6 +147,7 @@ public final class MenuManager implements MenuActionExecutor.Navigator {
         holder.attach(inventory);
         this.renderSelectedTarget(holder, viewer, target, state);
         viewer.openInventory(inventory);
+        this.startRefresh(viewer, holder);
     }
 
     @Override
@@ -181,6 +182,16 @@ public final class MenuManager implements MenuActionExecutor.Navigator {
         }
     }
 
+    public static void validate(
+            final @NotNull TargetSelectorConfiguration targetSelectorConfig,
+            final @NotNull SelectedTargetConfiguration selectedTargetConfig
+    ) {
+
+        contentSlots(targetSelectorConfig.allowedSlots(), targetSelectorConfig.items());
+        contentSlots(selectedTargetConfig.allowedSlots(), selectedTargetConfig.items());
+
+    }
+
     public void closeAll() {
         for (final Player player : Bukkit.getOnlinePlayers()) {
             this.scheduleForViewer(player, () -> this.closeMenu(player));
@@ -192,8 +203,7 @@ public final class MenuManager implements MenuActionExecutor.Navigator {
             final @NotNull TargetSelectorConfiguration targetSelectorConfig,
             final @NotNull SelectedTargetConfiguration selectedTargetConfig
     ) {
-        contentSlots(targetSelectorConfig.allowedSlots(), targetSelectorConfig.items());
-        contentSlots(selectedTargetConfig.allowedSlots(), selectedTargetConfig.items());
+        validate(targetSelectorConfig, selectedTargetConfig);
 
         this.state = new State(
                 settings,
@@ -330,6 +340,10 @@ public final class MenuManager implements MenuActionExecutor.Navigator {
             final @NotNull Map<String, String> placeholders
     ) {
         holder.bind(slot, (viewer, clickType) -> {
+            if (!this.canView(viewer)) {
+                viewer.closeInventory();
+                return;
+            }
             final List<String> actions = clickActions(
                     clickType,
                     leftClickActions,
@@ -398,6 +412,13 @@ public final class MenuManager implements MenuActionExecutor.Navigator {
             return;
         }
 
+        final int configuredSize = holder.type() == MenuHolder.Type.TARGET_SELECTOR
+                ? state.targetSelectorConfig().size() : state.selectedTargetConfig().size();
+        if (holder.getInventory().getSize() != configuredSize) {
+            this.refreshOpenMenu(viewer);
+            return;
+        }
+
         if (holder.type() == MenuHolder.Type.TARGET_SELECTOR
                 && state.targetSelectorConfig().targetItem().updateOnFailure()) {
             this.renderTargetSelector(holder, viewer, state);
@@ -448,25 +469,48 @@ public final class MenuManager implements MenuActionExecutor.Navigator {
         }
     }
 
+    private void startRefresh(final @NotNull Player viewer, final @NotNull MenuHolder holder) {
+
+        holder.refreshTask(this.scheduler.scheduleEntity(viewer, task -> {
+            if (InventoryViewCompat.getTopInventory(viewer).getHolder() != holder) {
+                task.cancel();
+                return;
+            }
+            final State state = this.state;
+            if (!this.canView(viewer, state)) {
+                viewer.closeInventory();
+                task.cancel();
+                return;
+            }
+            final int configuredSize = holder.type() == MenuHolder.Type.TARGET_SELECTOR
+                    ? state.targetSelectorConfig().size() : state.selectedTargetConfig().size();
+            if (holder.getInventory().getSize() != configuredSize) {
+                this.refreshOpenMenu(viewer);
+                task.cancel();
+                return;
+            }
+            if (holder.type() == MenuHolder.Type.TARGET_SELECTOR) {
+                if (state.targetSelectorConfig().targetItem().updateOnFailure()) {
+                    this.renderTargetSelector(holder, viewer, state);
+                }
+            } else {
+                final TrackedPlayer target = this.playerRegistry.get(holder.targetId());
+                if (target == null) {
+                    this.openTargetSelector(viewer, 0);
+                    task.cancel();
+                } else if (state.selectedTargetConfig().entryItem().updateOnFailure()) {
+                    this.renderSelectedTarget(holder, viewer, target, state);
+                }
+            }
+        }, TickSchedule.repeating(20, 20)));
+
+    }
+
     private void scheduleForViewer(
             final @NotNull Player viewer,
             final @NotNull Runnable action
     ) {
-        if (!FOLIA) {
-            action.run();
-            return;
-        }
-
         this.scheduler.scheduleEntity(viewer, action, TickSchedule.instant());
-    }
-
-    private static boolean isFolia() {
-        try {
-            Class.forName("io.papermc.paper.threadedregions.RegionizedServer");
-            return true;
-        } catch (final ClassNotFoundException exception) {
-            return false;
-        }
     }
 
     private boolean canView(

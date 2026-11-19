@@ -10,6 +10,8 @@ import com.g4vrk.react.api.util.TimeParser;
 import com.g4vrk.react.api.player.TrackedPlayer;
 import com.g4vrk.react.api.player.registry.TrackedPlayerRegistry;
 import com.g4vrk.react.api.text.TextFormatter;
+import com.g4vrk.schedula.task.TickSchedule;
+import com.g4vrk.schedula.task.scheduler.Scheduler;
 import net.kyori.adventure.audience.Audience;
 import org.bukkit.GameMode;
 import org.bukkit.entity.Player;
@@ -28,6 +30,7 @@ public final class MenuActionExecutor {
     private final ActionParser<Audience> actionParser;
     private final ActionParser<Player> playerActionParser;
     private final Logger logger;
+    private final Scheduler scheduler;
     private final Navigator navigator;
     private final TrackedPlayerRegistry playerRegistry;
     private final Set<String> reportedUnknownActions = ConcurrentHashMap.newKeySet();
@@ -37,11 +40,13 @@ public final class MenuActionExecutor {
             final @NotNull ActionParser<Audience> actionParser,
             final @NotNull TextFormatter text,
             final @NotNull Logger logger,
+            final @NotNull Scheduler scheduler,
             final @NotNull Navigator navigator
     ) {
         this.playerRegistry = playerRegistry;
         this.actionParser = actionParser;
         this.logger = logger;
+        this.scheduler = scheduler;
         this.navigator = navigator;
 
         final ActionRegistry<Player> playerActionRegistry = new SimpleActionRegistry<>(true);
@@ -129,7 +134,13 @@ public final class MenuActionExecutor {
                 final TrackedPlayer target = context.target();
 
                 if (target != null && this.playerRegistry.get(target.uniqueId()) == target) {
-                    context.viewer().teleport(target.bukkit());
+                    this.scheduler.scheduleEntity(target.bukkit(), () -> {
+                        if (this.playerRegistry.get(target.uniqueId()) != target) {
+                            return;
+                        }
+                        final var location = target.bukkit().getLocation();
+                        this.scheduler.scheduleEntity(context.viewer(), () -> context.viewer().teleportAsync(location), TickSchedule.instant());
+                    }, TickSchedule.instant());
                 }
 
                 yield true;
