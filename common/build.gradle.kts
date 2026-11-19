@@ -10,6 +10,7 @@ repositories {
 dependencies {
 
     compileOnly(libs.paper.api)
+    compileOnly(libs.xseries)
 
     compileOnly(libs.react.api)
     compileOnly(libs.react.common)

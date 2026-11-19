@@ -1,5 +1,6 @@
 package com.g4vrk.menuAddon.config;
 
+import com.cryptomorin.xseries.XMaterial;
 import org.bukkit.Color;
 import org.bukkit.Material;
 import org.jetbrains.annotations.NotNull;
@@ -14,6 +15,9 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 
+/**
+ * Parses and validates reusable menu configuration values.
+ */
 final class ConfigurationUtil {
 
     private ConfigurationUtil() {
@@ -93,19 +97,21 @@ final class ConfigurationUtil {
             final @NotNull ConfigurationNode node,
             final @NotNull Material fallback
     ) {
+
         final String configured = node.getString();
 
         if (configured == null || configured.isBlank()) {
             return fallback;
         }
 
-        final Material material = Material.matchMaterial(configured.trim().toUpperCase(Locale.ROOT));
+        final Material material = XMaterial.matchXMaterial(configured.trim()).map(XMaterial::get).orElse(null);
 
         if (material == null || !material.isItem()) {
             throw new IllegalArgumentException("Unknown item material: " + configured);
         }
 
         return material;
+
     }
 
     static @Nullable Color color(
