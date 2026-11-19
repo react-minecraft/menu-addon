@@ -60,13 +60,29 @@ public final class ReactMenuAddon extends JavaAddon {
                 configuration.selectedTarget()
         );
 
-        environment.listeners().register(new MenuListener(environment.scheduler()));
+        environment.listeners().register(new MenuListener(environment.scheduler(), this.menuManager));
         environment.listeners().register(new HistoryEntryAddedListener(this.menuManager, environment.scheduler()));
 
         this.command = new MenuCommand(parser, this.menuManager, environment.scheduler(), this::reloadAsync, configuration.main());
         this.command.register(environment.commands(), configuration.settings().argumentLiteral(), configuration.settings().permission());
 
         logger().info("Menu is available as /react {}", configuration.settings().argumentLiteral());
+
+    }
+
+    @Override
+    public @NotNull CompletableFuture<Void> prepareDisable() {
+
+        return this.menuManager == null ? CompletableFuture.completedFuture(null) : this.menuManager.closeAll();
+
+    }
+
+    @Override
+    public void cancelDisablePreparation() {
+
+        if (this.menuManager != null) {
+            this.menuManager.cancelClose();
+        }
 
     }
 

@@ -28,6 +28,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.HashMap;
+import java.util.concurrent.CompletableFuture;
 
 public final class MenuManager implements MenuActionExecutor.Navigator {
 
@@ -35,6 +37,12 @@ public final class MenuManager implements MenuActionExecutor.Navigator {
     private final TextFormatter text;
     private final MenuActionExecutor actionExecutor;
     private final Scheduler scheduler;
+    private final Object viewersLock = new Object();
+    private final Map<UUID, MenuHolder> openMenus = new HashMap<>();
+    private final Map<UUID, CompletableFuture<Void>> pendingClose = new HashMap<>();
+    private final Set<UUID> closingViewers = new HashSet<>();
+    private boolean stopping;
+    private long closeGeneration;
 
     private volatile State state;
 
@@ -105,8 +113,7 @@ public final class MenuManager implements MenuActionExecutor.Navigator {
 
         holder.attach(inventory);
         this.renderTargetSelector(holder, viewer, state);
-        viewer.openInventory(inventory);
-        this.startRefresh(viewer, holder);
+        this.openInventory(viewer, holder, inventory);
     }
 
     @Override
@@ -146,8 +153,7 @@ public final class MenuManager implements MenuActionExecutor.Navigator {
 
         holder.attach(inventory);
         this.renderSelectedTarget(holder, viewer, target, state);
-        viewer.openInventory(inventory);
-        this.startRefresh(viewer, holder);
+        this.openInventory(viewer, holder, inventory);
     }
 
     @Override
@@ -192,10 +198,106 @@ public final class MenuManager implements MenuActionExecutor.Navigator {
 
     }
 
-    public void closeAll() {
-        for (final Player player : Bukkit.getOnlinePlayers()) {
-            this.scheduleForViewer(player, () -> this.closeMenu(player));
+    public @NotNull CompletableFuture<Void> closeAll() {
+
+        synchronized (this.viewersLock) {
+            this.stopping = true;
+            final long generation = ++this.closeGeneration;
+            for (final Player player : Bukkit.getOnlinePlayers()) {
+                final UUID playerId = player.getUniqueId();
+                if (!this.openMenus.containsKey(playerId)) {
+                    continue;
+                }
+                final MenuHolder expected = this.openMenus.get(playerId);
+                final CompletableFuture<Void> closed = this.pendingClose.computeIfAbsent(playerId, ignored -> new CompletableFuture<>());
+                try {
+                    this.scheduler.scheduleEntity(player, () -> {
+                        try {
+                            synchronized (this.viewersLock) {
+                                if (!this.stopping || this.closeGeneration != generation) {
+                                    return;
+                                }
+                                this.closingViewers.add(playerId);
+                                try {
+                                    if (InventoryViewCompat.getTopInventory(player).getHolder() == expected) {
+                                        player.closeInventory();
+                                    }
+                                    this.menuClosed(player, expected);
+                                } finally {
+                                    this.closingViewers.remove(playerId);
+                                }
+                                this.viewerClosed(playerId);
+                            }
+                        } catch (final RuntimeException exception) {
+                            closed.completeExceptionally(exception);
+                        }
+                    }, TickSchedule.instant());
+                } catch (final RuntimeException exception) {
+                    closed.completeExceptionally(exception);
+                }
+            }
+            final CompletableFuture<Void> result = CompletableFuture.allOf(this.pendingClose.values().toArray(CompletableFuture[]::new));
+            result.whenComplete((ignored, failure) -> {
+                if (failure != null) {
+                    synchronized (this.viewersLock) {
+                        this.pendingClose.clear();
+                        this.stopping = false;
+                    }
+                }
+            });
+            return result;
         }
+
+    }
+
+    public void cancelClose() {
+
+        synchronized (this.viewersLock) {
+            this.pendingClose.clear();
+            this.stopping = false;
+            this.closeGeneration++;
+        }
+
+    }
+
+    public void menuClosed(final @NotNull Player viewer, final @NotNull MenuHolder holder) {
+
+        synchronized (this.viewersLock) {
+            if (this.openMenus.remove(viewer.getUniqueId(), holder)) {
+                this.viewerClosed(viewer.getUniqueId());
+            }
+        }
+
+    }
+
+    public void viewerClosed(final @NotNull UUID playerId) {
+
+        synchronized (this.viewersLock) {
+            this.openMenus.remove(playerId);
+            if (this.closingViewers.contains(playerId)) {
+                return;
+            }
+            final CompletableFuture<Void> closed = this.pendingClose.remove(playerId);
+            if (closed != null) {
+                closed.complete(null);
+            }
+        }
+
+    }
+
+    private void openInventory(final @NotNull Player viewer, final @NotNull MenuHolder holder, final @NotNull Inventory inventory) {
+
+        synchronized (this.viewersLock) {
+            if (this.stopping) {
+                return;
+            }
+            viewer.openInventory(inventory);
+            if (InventoryViewCompat.getTopInventory(viewer) == inventory) {
+                this.openMenus.put(viewer.getUniqueId(), holder);
+                this.startRefresh(viewer, holder);
+            }
+        }
+
     }
 
     private void apply(
@@ -463,14 +565,6 @@ public final class MenuManager implements MenuActionExecutor.Navigator {
             this.openTargetSelector(viewer, 0);
         } else {
             this.openSelectedTarget(viewer, target, holder.page());
-        }
-    }
-
-    private void closeMenu(
-            final @NotNull Player player
-    ) {
-        if (InventoryViewCompat.getTopInventory(player).getHolder() instanceof MenuHolder) {
-            player.closeInventory();
         }
     }
 

@@ -1,6 +1,7 @@
 package com.g4vrk.menuAddon.listener;
 
 import com.g4vrk.menuAddon.menu.MenuHolder;
+import com.g4vrk.menuAddon.menu.MenuManager;
 import com.g4vrk.menuAddon.util.InventoryViewCompat;
 import com.g4vrk.schedula.task.TickSchedule;
 import com.g4vrk.schedula.task.scheduler.Scheduler;
@@ -11,16 +12,19 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.Inventory;
 import org.jetbrains.annotations.NotNull;
 
 public final class MenuListener implements Listener {
 
     private final Scheduler scheduler;
+    private final MenuManager menus;
 
-    public MenuListener(final @NotNull Scheduler scheduler) {
+    public MenuListener(final @NotNull Scheduler scheduler, final @NotNull MenuManager menus) {
 
         this.scheduler = scheduler;
+        this.menus = menus;
 
     }
 
@@ -79,7 +83,17 @@ public final class MenuListener implements Listener {
 
         if (event.getInventory().getHolder() instanceof MenuHolder holder) {
             holder.stopRefresh();
+            if (event.getPlayer() instanceof Player player) {
+                this.menus.menuClosed(player, holder);
+            }
         }
+
+    }
+
+    @EventHandler
+    public void onQuit(final @NotNull PlayerQuitEvent event) {
+
+        this.menus.viewerClosed(event.getPlayer().getUniqueId());
 
     }
 }
