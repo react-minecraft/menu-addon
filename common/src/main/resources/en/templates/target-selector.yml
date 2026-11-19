@@ -3,6 +3,7 @@ size: 54
 
 listing:
 
+  # React currently exposes online tracked players only; false cannot include offline players.
   only-online: true
 
   sort:

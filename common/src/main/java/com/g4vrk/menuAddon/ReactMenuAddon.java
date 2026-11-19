@@ -136,10 +136,14 @@ public final class ReactMenuAddon extends JavaAddon {
     private @NotNull LoadedModules load() {
 
         final CommentedConfigurationNode main = read(MAIN_CONFIG, false);
+        final TargetSelectorConfiguration targetSelector = new TargetSelectorConfiguration(read(TARGET_SELECTOR, true));
+        if (!targetSelector.onlyOnline()) {
+            logger().warn("listing.only-online=false is unavailable: React only exposes online tracked players");
+        }
         return new LoadedModules(
                 main,
                 new AddonSettings(main.node("settings")),
-                new TargetSelectorConfiguration(read(TARGET_SELECTOR, true)),
+                targetSelector,
                 new SelectedTargetConfiguration(read(SELECTED_TARGET, true))
         );
 

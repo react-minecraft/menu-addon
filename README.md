@@ -46,6 +46,9 @@ settings:
   include-empty-history: false  # показывать игроков без истории
 ```
 
+React предоставляет аддону только игроков онлайн. Поэтому `listing.only-online: false` в
+`templates/target-selector.yml` пока не добавляет офлайн-игроков: аддон сообщит об этом в журнале.
+
 ## Установка
 
 1. Соберите аддон или скачайте jar из [GitHub Releases](https://github.com/react-minecraft/menu-addon/releases/latest). Нужен React с API 2.

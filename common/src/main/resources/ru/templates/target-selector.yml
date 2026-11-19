@@ -3,6 +3,7 @@ size: 54
 
 listing:
 
+  # React пока предоставляет только онлайн-игроков; false не добавит офлайн-игроков.
   only-online: true
 
   sort:
