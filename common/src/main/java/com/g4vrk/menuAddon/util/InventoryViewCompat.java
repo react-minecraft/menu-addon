@@ -17,12 +17,15 @@ public final class InventoryViewCompat {
     public static @NotNull Inventory getTopInventory(
             final @NotNull Player player
     ) {
+
         return getTopInventory((Object) player.getOpenInventory());
+
     }
 
     public static @NotNull Inventory getTopInventory(
             final @NotNull Object view
     ) {
+
         try {
             return (Inventory) GET_TOP_INVENTORY.invoke(view);
         } catch (final IllegalAccessException exception) {
@@ -36,9 +39,11 @@ public final class InventoryViewCompat {
                     exception.getCause()
             );
         }
+
     }
 
     private static @NotNull Method resolveTopInventoryMethod() {
+
         try {
 
             final Class<?> inventoryView = Class.forName(
@@ -52,5 +57,6 @@ public final class InventoryViewCompat {
             throw new ExceptionInInitializerError(exception);
 
         }
+
     }
 }

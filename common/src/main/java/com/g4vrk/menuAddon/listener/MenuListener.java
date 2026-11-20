@@ -32,6 +32,7 @@ public final class MenuListener implements Listener {
     public void onInventoryClick(
             final @NotNull InventoryClickEvent event
     ) {
+
         final Inventory topInventory =
                 InventoryViewCompat.getTopInventory(event.getView());
 
@@ -59,12 +60,14 @@ public final class MenuListener implements Listener {
                 }
             }, TickSchedule.instant());
         }
+
     }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
     public void onInventoryDrag(
             final @NotNull InventoryDragEvent event
     ) {
+
         final Inventory topInventory =
                 InventoryViewCompat.getTopInventory(event.getView());
 
@@ -76,6 +79,7 @@ public final class MenuListener implements Listener {
                 .anyMatch(slot -> slot < topInventory.getSize())) {
             event.setCancelled(true);
         }
+
     }
 
     @EventHandler

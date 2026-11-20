@@ -23,6 +23,7 @@ public final class TargetSelectorConfiguration {
     public TargetSelectorConfiguration(
             final @NotNull ConfigurationNode node
     ) {
+
         this.title = node.node("title").getString("&8Нарушители");
         this.size = ConfigurationUtil.inventorySize(node.node("size"));
         this.onlyOnline = node.node("listing", "only-online").getBoolean(true);
@@ -34,44 +35,62 @@ public final class TargetSelectorConfiguration {
         );
         this.targetItem = TargetItem.read(node.node("target-template"));
         this.items = readItems(node.node("items"), this.size);
+
     }
 
     public @NotNull String title() {
+
         return this.title;
+
     }
 
     public int size() {
+
         return this.size;
+
     }
 
     public boolean onlyOnline() {
+
         return this.onlyOnline;
+
     }
 
     public @NotNull SortBy sortBy() {
+
         return this.sortBy;
+
     }
 
     public boolean descending() {
+
         return this.descending;
+
     }
 
     public @NotNull List<Integer> allowedSlots() {
+
         return this.allowedSlots;
+
     }
 
     public @NotNull TargetItem targetItem() {
+
         return this.targetItem;
+
     }
 
     public @NotNull Map<String, ItemConfiguration> items() {
+
         return this.items;
+
     }
 
     private static @NotNull Map<String, ItemConfiguration> readItems(
             final @NotNull ConfigurationNode node,
             final int inventorySize
     ) {
+
         final Map<String, ItemConfiguration> result = new LinkedHashMap<>();
 
         node.childrenMap().forEach((key, child) -> result.put(
@@ -80,6 +99,7 @@ public final class TargetSelectorConfiguration {
         ));
 
         return Map.copyOf(result);
+
     }
 
     public enum SortBy {
@@ -90,11 +110,13 @@ public final class TargetSelectorConfiguration {
         private static @NotNull SortBy read(
                 final @NotNull String value
         ) {
+
             try {
                 return valueOf(value.trim().replace('-', '_').toUpperCase(Locale.ROOT));
             } catch (final IllegalArgumentException exception) {
                 throw new IllegalArgumentException("Unknown target sorting mode: " + value, exception);
             }
+
         }
     }
 
@@ -112,6 +134,7 @@ public final class TargetSelectorConfiguration {
         private static @NotNull TargetItem read(
                 final @NotNull ConfigurationNode node
         ) {
+
             return new TargetItem(
                     node.node("material", "use-player-head").getBoolean(true),
                     ConfigurationUtil.material(
@@ -125,7 +148,9 @@ public final class TargetSelectorConfiguration {
                     ConfigurationUtil.strings(node.node("on-left-click")),
                     ConfigurationUtil.strings(node.node("on-right-click"))
             );
+
         }
+
     }
 
     public record FailureList(
@@ -141,6 +166,7 @@ public final class TargetSelectorConfiguration {
         private static @NotNull FailureList read(
                 final @NotNull ConfigurationNode node
         ) {
+
             final String appending = node.node("appending").getString("left");
 
             if (!appending.equalsIgnoreCase("left") && !appending.equalsIgnoreCase("right")) {
@@ -156,6 +182,8 @@ public final class TargetSelectorConfiguration {
                     node.node("separator").getString(" "),
                     node.node("empty").getString("&7Нет данных")
             );
+
         }
+
     }
 }

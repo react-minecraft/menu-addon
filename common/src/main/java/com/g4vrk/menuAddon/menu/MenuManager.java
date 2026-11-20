@@ -56,6 +56,7 @@ public final class MenuManager implements MenuActionExecutor.Navigator {
             final @NotNull TargetSelectorConfiguration targetSelectorConfig,
             final @NotNull SelectedTargetConfiguration selectedTargetConfig
     ) {
+
         this.playerRegistry = playerRegistry;
         this.text = text;
         this.scheduler = scheduler;
@@ -68,16 +69,21 @@ public final class MenuManager implements MenuActionExecutor.Navigator {
                 this
         );
         this.apply(settings, targetSelectorConfig, selectedTargetConfig);
+
     }
 
     public boolean canView(
             final @NotNull Player player
     ) {
+
         return this.canView(player, this.state);
+
     }
 
     public @NotNull String viewPermission() {
+
         return this.state.settings().permission();
+
     }
 
     @Override
@@ -85,6 +91,7 @@ public final class MenuManager implements MenuActionExecutor.Navigator {
             final @NotNull Player viewer,
             final int requestedPage
     ) {
+
         final State state = this.state;
 
         if (!this.canView(viewer, state)) {
@@ -114,6 +121,7 @@ public final class MenuManager implements MenuActionExecutor.Navigator {
         holder.attach(inventory);
         this.renderTargetSelector(holder, viewer, state);
         this.openInventory(viewer, holder, inventory);
+
     }
 
     @Override
@@ -122,6 +130,7 @@ public final class MenuManager implements MenuActionExecutor.Navigator {
             final @NotNull TrackedPlayer target,
             final int requestedPage
     ) {
+
         final State state = this.state;
 
         if (!this.canView(viewer, state) || this.playerRegistry.get(target.uniqueId()) != target) {
@@ -154,6 +163,7 @@ public final class MenuManager implements MenuActionExecutor.Navigator {
         holder.attach(inventory);
         this.renderSelectedTarget(holder, viewer, target, state);
         this.openInventory(viewer, holder, inventory);
+
     }
 
     @Override
@@ -161,19 +171,23 @@ public final class MenuManager implements MenuActionExecutor.Navigator {
             final @NotNull MenuActionExecutor.Context context,
             final int page
     ) {
+
         if (context.menuType() == MenuHolder.Type.TARGET_SELECTOR) {
             this.openTargetSelector(context.viewer(), page);
         } else if (context.target() != null) {
             this.openSelectedTarget(context.viewer(), context.target(), page);
         }
+
     }
 
     public void refresh(
             final @NotNull TrackedPlayer changedTarget
     ) {
+
         for (final Player viewer : Bukkit.getOnlinePlayers()) {
             this.scheduleForViewer(viewer, () -> this.refresh(viewer, changedTarget));
         }
+
     }
 
     public void reload(
@@ -181,11 +195,13 @@ public final class MenuManager implements MenuActionExecutor.Navigator {
             final @NotNull TargetSelectorConfiguration targetSelectorConfig,
             final @NotNull SelectedTargetConfiguration selectedTargetConfig
     ) {
+
         this.apply(settings, targetSelectorConfig, selectedTargetConfig);
 
         for (final Player viewer : Bukkit.getOnlinePlayers()) {
             this.scheduleForViewer(viewer, () -> this.refreshOpenMenu(viewer));
         }
+
     }
 
     public static void validate(
@@ -305,6 +321,7 @@ public final class MenuManager implements MenuActionExecutor.Navigator {
             final @NotNull TargetSelectorConfiguration targetSelectorConfig,
             final @NotNull SelectedTargetConfiguration selectedTargetConfig
     ) {
+
         validate(targetSelectorConfig, selectedTargetConfig);
 
         this.state = new State(
@@ -313,6 +330,7 @@ public final class MenuManager implements MenuActionExecutor.Navigator {
                 selectedTargetConfig,
                 new MenuTextRenderer(this.text, settings)
         );
+
     }
 
     private void renderTargetSelector(
@@ -320,6 +338,7 @@ public final class MenuManager implements MenuActionExecutor.Navigator {
             final @NotNull Player viewer,
             final @NotNull State state
     ) {
+
         final List<TrackedPlayer> targets = this.targets(state);
         final List<Integer> slots = contentSlots(
                 state.targetSelectorConfig().allowedSlots(),
@@ -362,6 +381,7 @@ public final class MenuManager implements MenuActionExecutor.Navigator {
                     state.renderer().menuPlaceholders(page, totalPages, target)
             );
         }
+
     }
 
     private void renderSelectedTarget(
@@ -370,6 +390,7 @@ public final class MenuManager implements MenuActionExecutor.Navigator {
             final @NotNull TrackedPlayer target,
             final @NotNull State state
     ) {
+
         final List<List<HistoryEntry>> groups = historyGroups(
                 target,
                 state.selectedTargetConfig().entryItem().failuresPerEntry()
@@ -419,6 +440,7 @@ public final class MenuManager implements MenuActionExecutor.Navigator {
                     menuPlaceholders
             );
         }
+
     }
 
     private void renderStaticItems(
@@ -428,6 +450,7 @@ public final class MenuManager implements MenuActionExecutor.Navigator {
             final TrackedPlayer target,
             final @NotNull State state
     ) {
+
         for (final ItemConfiguration item : items.values()) {
             for (final int slot : item.slots()) {
                 holder.getInventory().setItem(slot, state.renderer().staticItem(item, placeholders));
@@ -441,6 +464,7 @@ public final class MenuManager implements MenuActionExecutor.Navigator {
                 );
             }
         }
+
     }
 
     private void bind(
@@ -451,6 +475,7 @@ public final class MenuManager implements MenuActionExecutor.Navigator {
             final TrackedPlayer target,
             final @NotNull Map<String, String> placeholders
     ) {
+
         holder.bind(slot, (viewer, clickType) -> {
             if (!this.canView(viewer)) {
                 viewer.closeInventory();
@@ -478,11 +503,13 @@ public final class MenuManager implements MenuActionExecutor.Navigator {
                     )
             );
         });
+
     }
 
     private @NotNull List<TrackedPlayer> targets(
             final @NotNull State state
     ) {
+
         final List<TrackedPlayer> targets = new ArrayList<>();
 
         for (final TrackedPlayer target : this.playerRegistry) {
@@ -507,12 +534,14 @@ public final class MenuManager implements MenuActionExecutor.Navigator {
 
         targets.sort(comparator.thenComparing(TrackedPlayer::name, String.CASE_INSENSITIVE_ORDER));
         return targets;
+
     }
 
     private void refresh(
             final @NotNull Player viewer,
             final @NotNull TrackedPlayer changedTarget
     ) {
+
         final State state = this.state;
 
         if (!(InventoryViewCompat.getTopInventory(viewer).getHolder() instanceof MenuHolder holder)) {
@@ -537,11 +566,13 @@ public final class MenuManager implements MenuActionExecutor.Navigator {
                 && state.selectedTargetConfig().entryItem().updateOnFailure()) {
             this.renderSelectedTarget(holder, viewer, changedTarget, state);
         }
+
     }
 
     private void refreshOpenMenu(
             final @NotNull Player viewer
     ) {
+
         final State state = this.state;
 
         if (!(InventoryViewCompat.getTopInventory(viewer).getHolder() instanceof MenuHolder holder)) {
@@ -566,6 +597,7 @@ public final class MenuManager implements MenuActionExecutor.Navigator {
         } else {
             this.openSelectedTarget(viewer, target, holder.page());
         }
+
     }
 
     private void startRefresh(final @NotNull Player viewer, final @NotNull MenuHolder holder) {
@@ -605,21 +637,26 @@ public final class MenuManager implements MenuActionExecutor.Navigator {
             final @NotNull Player viewer,
             final @NotNull Runnable action
     ) {
+
         this.scheduler.scheduleEntity(viewer, action, TickSchedule.instant());
+
     }
 
     private boolean canView(
             final @NotNull Player player,
             final @NotNull State state
     ) {
+
         final String permission = state.settings().permission();
         return permission.isEmpty() || player.hasPermission(permission);
+
     }
 
     private static @NotNull List<List<HistoryEntry>> historyGroups(
             final @NotNull TrackedPlayer target,
             final int groupSize
     ) {
+
         final List<HistoryEntry> history = target.history();
         final List<HistoryEntry> newestFirst = new ArrayList<>(history.size());
 
@@ -636,12 +673,14 @@ public final class MenuManager implements MenuActionExecutor.Navigator {
         }
 
         return groups;
+
     }
 
     private static @NotNull List<Integer> contentSlots(
             final @NotNull List<Integer> configuredSlots,
             final @NotNull Map<String, ItemConfiguration> items
     ) {
+
         final Set<Integer> reserved = new HashSet<>();
 
         for (final ItemConfiguration item : items.values()) {
@@ -657,6 +696,7 @@ public final class MenuManager implements MenuActionExecutor.Navigator {
         }
 
         return result;
+
     }
 
     private static @NotNull List<String> clickActions(
@@ -664,6 +704,7 @@ public final class MenuManager implements MenuActionExecutor.Navigator {
             final @NotNull List<String> leftClickActions,
             final @NotNull List<String> rightClickActions
     ) {
+
         if (clickType.isLeftClick()) {
             return leftClickActions;
         }
@@ -673,27 +714,34 @@ public final class MenuManager implements MenuActionExecutor.Navigator {
         }
 
         return List.of();
+
     }
 
     private static int pages(
             final int itemCount,
             final int pageSize
     ) {
+
         return Math.max(1, (itemCount + pageSize - 1) / pageSize);
+
     }
 
     private static int clampPage(
             final int page,
             final int totalPages
     ) {
+
         return Math.max(0, Math.min(page, totalPages - 1));
+
     }
 
     private static long latestTimestamp(
             final @NotNull TrackedPlayer target
     ) {
+
         final List<HistoryEntry> history = target.history();
         return history.isEmpty() ? 0L : history.get(history.size() - 1).timestamp();
+
     }
 
     /**

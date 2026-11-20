@@ -43,6 +43,7 @@ public final class MenuActionExecutor {
             final @NotNull Scheduler scheduler,
             final @NotNull Navigator navigator
     ) {
+
         this.playerRegistry = playerRegistry;
         this.actionParser = actionParser;
         this.logger = logger;
@@ -57,12 +58,14 @@ public final class MenuActionExecutor {
                 s -> TimeParser.parse(s).toMillis() / 50
         );
         this.playerActionParser = new SimpleActionParser<>(playerActionRegistry);
+
     }
 
     public void execute(
             final @NotNull List<String> actions,
             final @NotNull Context context
     ) {
+
         for (final String configuredAction : actions) {
             final ParsedAction parsed = ParsedAction.parse(configuredAction);
 
@@ -98,12 +101,14 @@ public final class MenuActionExecutor {
                     value -> replace(value, context.placeholders())
             );
         }
+
     }
 
     private boolean executeLocal(
             final @NotNull ParsedAction action,
             final @NotNull Context context
     ) {
+
         return switch (action.name()) {
             case "gm", "gamemode", "set-game-mode" -> {
                 final String gameMode = replace(action.arguments(), context.placeholders()).trim();
@@ -183,12 +188,14 @@ public final class MenuActionExecutor {
 
             default -> false;
         };
+
     }
 
     private static @NotNull String replace(
             final @NotNull String value,
             final @NotNull Map<String, String> placeholders
     ) {
+
         String result = value;
 
         for (final Map.Entry<String, String> entry : placeholders.entrySet()) {
@@ -196,6 +203,7 @@ public final class MenuActionExecutor {
         }
 
         return result;
+
     }
 
     public record Context(
@@ -225,6 +233,7 @@ public final class MenuActionExecutor {
         private static @Nullable ParsedAction parse(
                 final @NotNull String value
         ) {
+
             final String action = value.trim();
 
             if (action.isEmpty()) {
@@ -282,6 +291,8 @@ public final class MenuActionExecutor {
                     name.toLowerCase(Locale.ROOT),
                     action.substring(argumentStart).trim()
             );
+
         }
+
     }
 }

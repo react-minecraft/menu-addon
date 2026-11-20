@@ -41,22 +41,27 @@ public final class MenuTextRenderer {
             final @NotNull TextFormatter text,
             final @NotNull AddonSettings settings
     ) {
+
         this.text = text;
         this.settings = settings;
         this.elapsedTimeFormatter = new ElapsedTimeFormatter(settings.elapsedTimeFormat());
+
     }
 
     public @NotNull Component title(
             final @NotNull String template,
             final @NotNull Map<String, String> placeholders
     ) {
+
         return this.component(template, placeholders);
+
     }
 
     public @NotNull ItemStack staticItem(
             final @NotNull ItemConfiguration config,
             final @NotNull Map<String, String> placeholders
     ) {
+
         final ItemStack item = new ItemStack(config.material());
         final ItemMeta meta = item.getItemMeta();
 
@@ -73,6 +78,7 @@ public final class MenuTextRenderer {
 
         item.setItemMeta(meta);
         return item;
+
     }
 
     public @NotNull ItemStack targetItem(
@@ -80,6 +86,7 @@ public final class MenuTextRenderer {
             final @NotNull TrackedPlayer target,
             final @NotNull List<HistoryEntry> history
     ) {
+
         final Material material = config.usePlayerHead() ? Material.PLAYER_HEAD : config.material();
         final ItemStack item = new ItemStack(material);
         final ItemMeta meta = item.getItemMeta();
@@ -99,6 +106,7 @@ public final class MenuTextRenderer {
 
         item.setItemMeta(meta);
         return item;
+
     }
 
     public @NotNull ItemStack historyGroupItem(
@@ -107,6 +115,7 @@ public final class MenuTextRenderer {
             final @NotNull List<HistoryEntry> entries,
             final @NotNull Map<String, String> menuPlaceholders
     ) {
+
         final GroupStatistic statistic = GroupStatistic.calculate(entries);
         final Map<String, String> placeholders = new HashMap<>(menuPlaceholders);
         this.putGroupStatistic(placeholders, statistic);
@@ -134,6 +143,7 @@ public final class MenuTextRenderer {
         meta.lore(lore);
         item.setItemMeta(meta);
         return item;
+
     }
 
     public @NotNull Map<String, String> menuPlaceholders(
@@ -141,6 +151,7 @@ public final class MenuTextRenderer {
             final int totalPages,
             final TrackedPlayer target
     ) {
+
         final Map<String, String> placeholders = new HashMap<>();
         final int normalizedPages = Math.max(1, totalPages);
         final int current = Math.max(1, Math.min(page + 1, normalizedPages));
@@ -158,19 +169,23 @@ public final class MenuTextRenderer {
         }
 
         return placeholders;
+
     }
 
     public @NotNull Component component(
             final @NotNull String template,
             final @NotNull Map<String, String> placeholders
     ) {
+
         return this.text.format(this.replace(template, placeholders)).decoration(TextDecoration.ITALIC, false);
+
     }
 
     public @NotNull String replace(
             final @NotNull String template,
             final @NotNull Map<String, String> placeholders
     ) {
+
         String result = template;
 
         for (final Map.Entry<String, String> entry : placeholders.entrySet()) {
@@ -178,6 +193,7 @@ public final class MenuTextRenderer {
         }
 
         return result;
+
     }
 
     private @NotNull List<Component> targetLore(
@@ -186,6 +202,7 @@ public final class MenuTextRenderer {
             final @NotNull List<HistoryEntry> history,
             final @NotNull Map<String, String> placeholders
     ) {
+
         final List<String> failureLines = this.failureLines(config.failures(), target, history);
         final List<Component> result = new ArrayList<>();
 
@@ -204,6 +221,7 @@ public final class MenuTextRenderer {
         }
 
         return result;
+
     }
 
     private @NotNull List<String> failureLines(
@@ -211,6 +229,7 @@ public final class MenuTextRenderer {
             final @NotNull TrackedPlayer target,
             final @NotNull List<HistoryEntry> history
     ) {
+
         if (history.isEmpty() || config.max() == 0) {
             return List.of(config.empty());
         }
@@ -244,6 +263,7 @@ public final class MenuTextRenderer {
         }
 
         return lines;
+
     }
 
     private @NotNull Map<String, String> targetPlaceholders(
@@ -279,6 +299,7 @@ public final class MenuTextRenderer {
             final @NotNull Map<String, String> placeholders,
             final @NotNull GroupStatistic statistic
     ) {
+
         final String probability = this.format(statistic.averageProbability(), this.settings.probabilityFormat());
 
         placeholders.put("statistic.average-probability", probability);
@@ -286,6 +307,7 @@ public final class MenuTextRenderer {
                 "statistic.average-probability:colored",
                 this.coloredProbability(statistic.averageProbability(), probability)
         );
+
     }
 
     private void putEntry(
@@ -294,6 +316,7 @@ public final class MenuTextRenderer {
             final @NotNull HistoryEntry entry,
             final @NotNull String decimalPattern
     ) {
+
         final String probability = this.format(entry.probability(), decimalPattern);
 
         placeholders.put("probability", probability);
@@ -303,12 +326,14 @@ public final class MenuTextRenderer {
         placeholders.put("check.id", entry.check());
         placeholders.put("passed-time", Long.toString(entry.timestamp()));
         placeholders.put("passed-time:formatted", this.elapsedTimeFormatter.formatTimestamp(entry.timestamp()));
+
     }
 
     private @NotNull Material historyGroupMaterial(
             final @NotNull SelectedTargetConfiguration.EntryItem config,
             final @NotNull GroupStatistic statistic
     ) {
+
         if (!config.coloredPane().enabled()) {
             return config.material();
         }
@@ -316,11 +341,13 @@ public final class MenuTextRenderer {
         final DyeColor dyeColor = dyeColor(statistic.averageProbability());
         final Material pane = Material.matchMaterial(dyeColor.name() + "_STAINED_GLASS_PANE");
         return pane == null ? config.material() : pane;
+
     }
 
     private static @NotNull DyeColor dyeColor(
             final double rawValue
     ) {
+
         final double value = Math.max(0.0D, Math.min(1.0D, rawValue));
         final int level = Math.min(4, (int) Math.floor(value * 5.0D));
 
@@ -331,12 +358,14 @@ public final class MenuTextRenderer {
                 case 3 -> DyeColor.ORANGE;
                 default -> DyeColor.RED;
         };
+
     }
 
     private @NotNull List<Component> components(
             final @NotNull List<String> templates,
             final @NotNull Map<String, String> placeholders
     ) {
+
         final List<Component> result = new ArrayList<>(templates.size());
 
         for (final String template : templates) {
@@ -344,49 +373,62 @@ public final class MenuTextRenderer {
         }
 
         return result;
+
     }
 
     private @NotNull String coloredProbability(
             final double value,
             final @NotNull String formatted
     ) {
+
         return color(probabilityColor(value), formatted);
+
     }
 
     private static @NotNull String color(
             final @NotNull TextColor color,
             final @NotNull String value
     ) {
+
         return String.format(Locale.ROOT, "<color:#%06X>%s</color>", color.value(), value);
+
     }
 
     private @NotNull String format(
             final double value,
             final @NotNull String pattern
     ) {
+
         final DecimalFormat format = new DecimalFormat(
                 pattern,
                 DecimalFormatSymbols.getInstance(Locale.US)
         );
         format.setRoundingMode(RoundingMode.HALF_UP);
         return format.format(value);
+
     }
 
     /** Mean probability of a player's retained history, or 0 when it is empty. */
     public static double averageProbability(final @NotNull TrackedPlayer target) {
+
         return averageProbability(target.history());
+
     }
 
     private static double averageProbability(final @NotNull List<HistoryEntry> history) {
+
         return GroupStatistic.calculate(history).averageProbability();
+
     }
 
     private static @NotNull TextColor probabilityColor(final double probability) {
+
         final double normalized = Math.min(1.0D, Math.max(probability, 0.0D));
         if (normalized < 0.5D) {
             return TextColor.color((int) (normalized * 2.0D * 255), 255, 0);
         }
         return TextColor.color(255, (int) ((1.0D - (normalized - 0.5D) * 2.0D) * 255), 0);
+
     }
 
     private record GroupStatistic(
@@ -396,6 +438,7 @@ public final class MenuTextRenderer {
         private static @NotNull GroupStatistic calculate(
                 final @NotNull List<HistoryEntry> entries
         ) {
+
             if (entries.isEmpty()) {
                 return new GroupStatistic(0.0D);
             }
@@ -407,6 +450,8 @@ public final class MenuTextRenderer {
             }
 
             return new GroupStatistic(probability / entries.size());
+
         }
+
     }
 }

@@ -22,6 +22,7 @@ public record ItemConfiguration(
             final @NotNull ConfigurationNode node,
             final int inventorySize
     ) {
+
         return new ItemConfiguration(
                 ConfigurationUtil.material(node.node("material"), Material.STONE),
                 ConfigurationUtil.color(node.node("color")),
@@ -31,5 +32,7 @@ public record ItemConfiguration(
                 ConfigurationUtil.strings(node.node("on-left-click")),
                 ConfigurationUtil.strings(node.node("on-right-click"))
         );
+
     }
+
 }

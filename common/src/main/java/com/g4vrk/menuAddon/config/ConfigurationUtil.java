@@ -26,6 +26,7 @@ final class ConfigurationUtil {
     static @NotNull List<String> strings(
             final @NotNull ConfigurationNode node
     ) {
+
         final List<String> result = new ArrayList<>();
 
         for (final ConfigurationNode child : node.childrenList()) {
@@ -37,12 +38,14 @@ final class ConfigurationUtil {
         }
 
         return List.copyOf(result);
+
     }
 
     static @NotNull List<Integer> slots(
             final @NotNull ConfigurationNode node,
             final int inventorySize
     ) {
+
         final Set<Integer> result = new LinkedHashSet<>();
 
         for (final ConfigurationNode child : node.childrenList()) {
@@ -77,11 +80,13 @@ final class ConfigurationUtil {
         }
 
         return List.copyOf(result);
+
     }
 
     static int inventorySize(
             final @NotNull ConfigurationNode node
     ) {
+
         final int size = node.getInt(54);
 
         if (size < 9 || size > 54 || size % 9 != 0) {
@@ -91,6 +96,7 @@ final class ConfigurationUtil {
         }
 
         return size;
+
     }
 
     static @NotNull Material material(
@@ -117,6 +123,7 @@ final class ConfigurationUtil {
     static @Nullable Color color(
             final @NotNull ConfigurationNode node
     ) {
+
         final String value = node.getString();
 
         if (value == null || value.isBlank()) {
@@ -130,12 +137,14 @@ final class ConfigurationUtil {
         }
 
         return Color.fromRGB(Integer.parseInt(hex, 16));
+
     }
 
     static @NotNull String decimalFormat(
             final @NotNull ConfigurationNode node,
             final @NotNull String fallback
     ) {
+
         final String pattern = node.getString(fallback);
 
         try {
@@ -145,17 +154,20 @@ final class ConfigurationUtil {
         }
 
         return pattern;
+
     }
 
     private static int parseInteger(
             final @NotNull String value,
             final @NotNull String description
     ) {
+
         try {
             return Integer.parseInt(value);
         } catch (final NumberFormatException exception) {
             throw new IllegalArgumentException("Invalid " + description + ": " + value, exception);
         }
+
     }
 
     private static void addSlot(
@@ -163,6 +175,7 @@ final class ConfigurationUtil {
             final int slot,
             final int inventorySize
     ) {
+
         if (slot < 0 || slot >= inventorySize) {
             throw new IllegalArgumentException(
                     "Inventory slot " + slot + " is outside configured size " + inventorySize
@@ -170,5 +183,6 @@ final class ConfigurationUtil {
         }
 
         slots.add(slot);
+
     }
 }

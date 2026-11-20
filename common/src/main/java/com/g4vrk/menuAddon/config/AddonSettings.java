@@ -14,6 +14,7 @@ public final class AddonSettings {
     public AddonSettings(
             final @NotNull ConfigurationNode node
     ) {
+
         final String configuredLiteral = node.node("argument-literal").getString("menu").trim();
 
         if (!configuredLiteral.matches("[a-z0-9_-]+")) {
@@ -32,26 +33,37 @@ public final class AddonSettings {
         this.elapsedTimeFormat = new ElapsedTimeFormat(
                 node.node("format", "elapsed-time")
         );
+
     }
 
     public @NotNull String argumentLiteral() {
+
         return this.argumentLiteral;
+
     }
 
     public @NotNull String permission() {
+
         return this.permission;
+
     }
 
     public boolean includeEmptyHistory() {
+
         return this.includeEmptyHistory;
+
     }
 
     public @NotNull String probabilityFormat() {
+
         return this.probabilityFormat;
+
     }
 
     public @NotNull ElapsedTimeFormat elapsedTimeFormat() {
+
         return this.elapsedTimeFormat;
+
     }
 
     public record ElapsedTimeFormat(
@@ -68,6 +80,7 @@ public final class AddonSettings {
         private ElapsedTimeFormat(
                 final @NotNull ConfigurationNode node
         ) {
+
             this(
                     node.node("now").getString("только что"),
                     node.node("never").getString("никогда"),
@@ -78,6 +91,8 @@ public final class AddonSettings {
                     node.node("minutes").getString("{value}м"),
                     node.node("seconds").getString("{value}с")
             );
+
         }
+
     }
 }

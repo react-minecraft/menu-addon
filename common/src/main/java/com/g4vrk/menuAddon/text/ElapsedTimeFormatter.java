@@ -14,12 +14,15 @@ public final class ElapsedTimeFormatter {
     public ElapsedTimeFormatter(
             final @NotNull AddonSettings.ElapsedTimeFormat format
     ) {
+
         this.format = format;
+
     }
 
     public @NotNull String formatTimestamp(
             final long timestamp
     ) {
+
         if (timestamp <= 0L) {
             return this.format.never();
         }
@@ -52,6 +55,7 @@ public final class ElapsedTimeFormatter {
                 this.format.separator(),
                 parts.subList(0, Math.min(parts.size(), this.format.maxParts()))
         );
+
     }
 
     private static void add(
@@ -59,8 +63,10 @@ public final class ElapsedTimeFormatter {
             final long value,
             final @NotNull String template
     ) {
+
         if (value > 0L) {
             parts.add(template.replace("{value}", Long.toString(value)));
         }
+
     }
 }

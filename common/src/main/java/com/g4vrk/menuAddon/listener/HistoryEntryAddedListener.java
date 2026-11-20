@@ -21,13 +21,17 @@ public final class HistoryEntryAddedListener {
             final @NotNull MenuManager menuManager,
             final @NotNull Scheduler scheduler
     ) {
+
         this.menuManager = menuManager;
         this.scheduler = scheduler;
+
     }
 
     @Subscribe(priority = EventPriority.MONITOR)
     public void onInferenceResult(final @NotNull InferenceResultEvent event) {
+
         final TrackedPlayer player = event.check().player();
         this.scheduler.schedule(() -> this.menuManager.refresh(player), TickSchedule.instant());
+
     }
 }

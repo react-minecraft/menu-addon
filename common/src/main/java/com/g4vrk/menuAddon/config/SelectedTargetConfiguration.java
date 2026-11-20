@@ -20,6 +20,7 @@ public final class SelectedTargetConfiguration {
     public SelectedTargetConfiguration(
             final @NotNull ConfigurationNode node
     ) {
+
         this.title = node.node("title").getString("&8Аналитика {player.name}");
         this.size = ConfigurationUtil.inventorySize(node.node("size"));
         this.allowedSlots = ConfigurationUtil.slots(
@@ -28,32 +29,44 @@ public final class SelectedTargetConfiguration {
         );
         this.entryItem = EntryItem.read(node.node("entry-template"));
         this.items = readItems(node.node("items"), this.size);
+
     }
 
     public @NotNull String title() {
+
         return this.title;
+
     }
 
     public int size() {
+
         return this.size;
+
     }
 
     public @NotNull List<Integer> allowedSlots() {
+
         return this.allowedSlots;
+
     }
 
     public @NotNull EntryItem entryItem() {
+
         return this.entryItem;
+
     }
 
     public @NotNull Map<String, ItemConfiguration> items() {
+
         return this.items;
+
     }
 
     private static @NotNull Map<String, ItemConfiguration> readItems(
             final @NotNull ConfigurationNode node,
             final int inventorySize
     ) {
+
         final Map<String, ItemConfiguration> result = new LinkedHashMap<>();
 
         node.childrenMap().forEach((key, child) -> result.put(
@@ -62,6 +75,7 @@ public final class SelectedTargetConfiguration {
         ));
 
         return Map.copyOf(result);
+
     }
 
     public record EntryItem(
@@ -81,6 +95,7 @@ public final class SelectedTargetConfiguration {
         private static @NotNull EntryItem read(
                 final @NotNull ConfigurationNode node
         ) {
+
             return new EntryItem(
                     Math.max(1, node.node("failures", "per-entry").getInt(11)),
                     ConfigurationUtil.decimalFormat(
@@ -104,7 +119,9 @@ public final class SelectedTargetConfiguration {
                     ConfigurationUtil.strings(node.node("on-left-click")),
                     ConfigurationUtil.strings(node.node("on-right-click"))
             );
+
         }
+
     }
 
     public record ColoredPane(
@@ -115,6 +132,7 @@ public final class SelectedTargetConfiguration {
         private static @NotNull ColoredPane read(
                 final @NotNull ConfigurationNode node
         ) {
+
             final String color = node.node("color").getString("probability");
 
             try {
@@ -128,7 +146,9 @@ public final class SelectedTargetConfiguration {
                         exception
                 );
             }
+
         }
+
     }
 
     public enum ValueSource {
