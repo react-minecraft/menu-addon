@@ -167,7 +167,7 @@ public final class ReactMenuAddon extends JavaAddon {
 
     private @NotNull CommentedConfigurationNode read(final @NotNull String name, final boolean keepMissing) {
 
-        final String language = "ru".equalsIgnoreCase(System.getProperty("user.language")) ? "ru" : "en";
+        final String language = "en".equalsIgnoreCase(System.getProperty("user.language")) ? "en" : "ru";
         final var builder = environment().configs().file(name, ConfigurationNode.class)
                 .defaults(getClass().getClassLoader(), language + "/" + name);
         if (keepMissing) {
