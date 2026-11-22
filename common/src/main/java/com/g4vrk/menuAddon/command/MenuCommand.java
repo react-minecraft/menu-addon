@@ -5,7 +5,7 @@ import com.g4vrk.functionalActions.parser.ActionParser;
 import com.g4vrk.menuAddon.menu.MenuManager;
 import com.g4vrk.react.api.extension.command.CommandRegistrar;
 import com.g4vrk.schedula.task.TickSchedule;
-import com.g4vrk.schedula.task.scheduler.Scheduler;
+import com.g4vrk.schedula.task.scheduler.TaskScheduler;
 import net.kyori.adventure.audience.Audience;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
@@ -29,15 +29,15 @@ public final class MenuCommand {
 
     private final ActionParser<Audience> parser;
     private final MenuManager menus;
-    private final Scheduler scheduler;
+    private final TaskScheduler<Player> scheduler;
     private final Supplier<CompletableFuture<Void>> reload;
 
-    private volatile Messages messages;
+    private volatile MessageSet messages;
 
     public MenuCommand(
             final @NotNull ActionParser<Audience> parser,
             final @NotNull MenuManager menus,
-            final @NotNull Scheduler scheduler,
+            final @NotNull TaskScheduler<Player> scheduler,
             final @NotNull Supplier<CompletableFuture<Void>> reload,
             final @NotNull ConfigurationNode config
     ) {
@@ -52,7 +52,7 @@ public final class MenuCommand {
 
     public void reload(final @NotNull ConfigurationNode config) {
 
-        this.messages = new Messages(
+        this.messages = new MessageSet(
                 actions(config, "open", "on-console"),
                 actions(config, "open", "on-denied"),
                 actions(config, "reload", "on-start"),
@@ -73,7 +73,7 @@ public final class MenuCommand {
                 commands.command(ROOT)
                         .literal(literal)
                         .permission(permission)
-                        .handler(context -> open(context.sender()))
+                        .handler(context -> open(java.util.Objects.requireNonNull(context.sender().unwrap(CommandSender.class))))
         );
 
         commands.register(
@@ -82,14 +82,14 @@ public final class MenuCommand {
                         .literal(literal)
                         .literal("reload")
                         .permission(permission)
-                        .handler(context -> reload(context.sender()))
+                        .handler(context -> reload(java.util.Objects.requireNonNull(context.sender().unwrap(CommandSender.class))))
         );
 
     }
 
     private void open(final @NotNull CommandSender sender) {
 
-        final Messages current = this.messages;
+        final MessageSet current = this.messages;
 
         if (!(sender instanceof Player player)) {
             current.console().run(sender);
@@ -133,7 +133,7 @@ public final class MenuCommand {
 
     }
 
-    private record Messages(
+    private record MessageSet(
             @NotNull ExecutableActionList<? super Audience> console,
             @NotNull ExecutableActionList<? super Audience> denied,
             @NotNull ExecutableActionList<? super Audience> reloadStart,

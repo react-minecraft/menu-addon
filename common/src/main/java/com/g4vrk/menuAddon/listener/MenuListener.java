@@ -4,7 +4,7 @@ import com.g4vrk.menuAddon.menu.MenuHolder;
 import com.g4vrk.menuAddon.menu.MenuManager;
 import com.g4vrk.menuAddon.util.InventoryViewCompat;
 import com.g4vrk.schedula.task.TickSchedule;
-import com.g4vrk.schedula.task.scheduler.Scheduler;
+import com.g4vrk.schedula.task.scheduler.TaskScheduler;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -18,10 +18,10 @@ import org.jetbrains.annotations.NotNull;
 
 public final class MenuListener implements Listener {
 
-    private final Scheduler scheduler;
+    private final TaskScheduler<Player> scheduler;
     private final MenuManager menus;
 
-    public MenuListener(final @NotNull Scheduler scheduler, final @NotNull MenuManager menus) {
+    public MenuListener(final @NotNull TaskScheduler<Player> scheduler, final @NotNull MenuManager menus) {
 
         this.scheduler = scheduler;
         this.menus = menus;

@@ -1,7 +1,7 @@
 package com.g4vrk.menuAddon.menu;
 
 import com.g4vrk.functionalActions.parser.ActionParser;
-import com.g4vrk.menuAddon.config.AddonSettings;
+import com.g4vrk.menuAddon.config.AddonConfig;
 import com.g4vrk.menuAddon.config.ItemConfiguration;
 import com.g4vrk.menuAddon.config.SelectedTargetConfiguration;
 import com.g4vrk.menuAddon.config.TargetSelectorConfiguration;
@@ -12,7 +12,7 @@ import com.g4vrk.react.api.player.TrackedPlayer;
 import com.g4vrk.react.api.player.registry.TrackedPlayerRegistry;
 import com.g4vrk.react.api.text.TextFormatter;
 import com.g4vrk.schedula.task.TickSchedule;
-import com.g4vrk.schedula.task.scheduler.Scheduler;
+import com.g4vrk.schedula.task.scheduler.TaskScheduler;
 import net.kyori.adventure.audience.Audience;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
@@ -36,7 +36,7 @@ public final class MenuManager implements MenuActionExecutor.Navigator {
     private final TrackedPlayerRegistry playerRegistry;
     private final TextFormatter text;
     private final MenuActionExecutor actionExecutor;
-    private final Scheduler scheduler;
+    private final TaskScheduler<Player> scheduler;
     private final Object viewersLock = new Object();
     private final Map<UUID, MenuHolder> openMenus = new HashMap<>();
     private final Map<UUID, CompletableFuture<Void>> pendingClose = new HashMap<>();
@@ -51,8 +51,8 @@ public final class MenuManager implements MenuActionExecutor.Navigator {
             final @NotNull ActionParser<Audience> actionParser,
             final @NotNull TextFormatter text,
             final @NotNull Logger logger,
-            final @NotNull Scheduler scheduler,
-            final @NotNull AddonSettings settings,
+            final @NotNull TaskScheduler<Player> scheduler,
+            final @NotNull AddonConfig settings,
             final @NotNull TargetSelectorConfiguration targetSelectorConfig,
             final @NotNull SelectedTargetConfiguration selectedTargetConfig
     ) {
@@ -191,7 +191,7 @@ public final class MenuManager implements MenuActionExecutor.Navigator {
     }
 
     public void reload(
-            final @NotNull AddonSettings settings,
+            final @NotNull AddonConfig settings,
             final @NotNull TargetSelectorConfiguration targetSelectorConfig,
             final @NotNull SelectedTargetConfiguration selectedTargetConfig
     ) {
@@ -337,7 +337,7 @@ public final class MenuManager implements MenuActionExecutor.Navigator {
     }
 
     private void apply(
-            final @NotNull AddonSettings settings,
+            final @NotNull AddonConfig settings,
             final @NotNull TargetSelectorConfiguration targetSelectorConfig,
             final @NotNull SelectedTargetConfiguration selectedTargetConfig
     ) {
@@ -773,7 +773,7 @@ public final class MenuManager implements MenuActionExecutor.Navigator {
      * Keeps one immutable configuration set visible to concurrent entity scheduler tasks.
      */
     private record State(
-            @NotNull AddonSettings settings,
+            @NotNull AddonConfig settings,
             @NotNull TargetSelectorConfiguration targetSelectorConfig,
             @NotNull SelectedTargetConfiguration selectedTargetConfig,
             @NotNull MenuTextRenderer renderer

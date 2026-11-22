@@ -1,8 +1,9 @@
 package com.g4vrk.menuAddon;
 
+import org.bukkit.entity.Player;
 import com.g4vrk.functionalActions.parser.ActionParser;
 import com.g4vrk.menuAddon.command.MenuCommand;
-import com.g4vrk.menuAddon.config.AddonSettings;
+import com.g4vrk.menuAddon.config.AddonConfig;
 import com.g4vrk.menuAddon.config.SelectedTargetConfiguration;
 import com.g4vrk.menuAddon.config.TargetSelectorConfiguration;
 import com.g4vrk.menuAddon.listener.HistoryEntryAddedListener;
@@ -45,7 +46,7 @@ public final class ReactMenuAddon extends JavaAddon {
 
         final AddonEnvironment environment = environment();
         final ActionParser<Audience> parser = environment.actions();
-        final LoadedModules configuration = load();
+        final LoadedModuleSet configuration = load();
         this.registeredLiteral = configuration.settings().argumentLiteral();
         this.registeredPermission = configuration.settings().permission();
 
@@ -54,16 +55,16 @@ public final class ReactMenuAddon extends JavaAddon {
                 parser,
                 environment.text(),
                 logger(),
-                environment.scheduler(),
+                environment.scheduler().<Player>mapEntity(environment.platform()::adaptPlayer),
                 configuration.settings(),
                 configuration.targetSelector(),
                 configuration.selectedTarget()
         );
 
-        environment.listeners().register(new MenuListener(environment.scheduler(), this.menuManager));
-        environment.listeners().register(new HistoryEntryAddedListener(this.menuManager, environment.scheduler()));
+        environment.listeners().register(new MenuListener(environment.scheduler().<Player>mapEntity(environment.platform()::adaptPlayer), this.menuManager));
+        environment.listeners().register(new HistoryEntryAddedListener(this.menuManager, environment.scheduler().<Player>mapEntity(environment.platform()::adaptPlayer)));
 
-        this.command = new MenuCommand(parser, this.menuManager, environment.scheduler(), this::reloadAsync, configuration.main());
+        this.command = new MenuCommand(parser, this.menuManager, environment.scheduler().<Player>mapEntity(environment.platform()::adaptPlayer), this::reloadAsync, configuration.main());
         this.command.register(environment.commands(), configuration.settings().argumentLiteral(), configuration.settings().permission());
 
         logger().info("Menu is available as /react {}", configuration.settings().argumentLiteral());
@@ -119,7 +120,7 @@ public final class ReactMenuAddon extends JavaAddon {
             return CompletableFuture.failedFuture(new IllegalStateException("Menu addon is already reloading"));
         }
 
-        final CompletableFuture<Void> result = CompletableFuture.supplyAsync(this::load).thenAcceptAsync(this::applyReload, task -> environment().scheduler().schedule(task, TickSchedule.instant()));
+        final CompletableFuture<Void> result = CompletableFuture.supplyAsync(this::load).thenAcceptAsync(this::applyReload, task -> environment().scheduler().<Player>mapEntity(environment().platform()::adaptPlayer).schedule(task, TickSchedule.instant()));
         this.pendingReload = result;
         result.whenComplete((ignored, failure) -> {
             if (failure != null && !result.isCancelled()) {
@@ -130,7 +131,7 @@ public final class ReactMenuAddon extends JavaAddon {
 
     }
 
-    private synchronized void applyReload(final @NotNull LoadedModules configuration) {
+    private synchronized void applyReload(final @NotNull LoadedModuleSet configuration) {
 
         if (this.disabled) {
             return;
@@ -149,16 +150,16 @@ public final class ReactMenuAddon extends JavaAddon {
 
     }
 
-    private @NotNull LoadedModules load() {
+    private @NotNull LoadedModuleSet load() {
 
         final CommentedConfigurationNode main = read(MAIN_CONFIG, false);
         final TargetSelectorConfiguration targetSelector = new TargetSelectorConfiguration(read(TARGET_SELECTOR, true));
         if (!targetSelector.onlyOnline()) {
             logger().warn("listing.only-online=false is unavailable: React only exposes online tracked players");
         }
-        return new LoadedModules(
+        return new LoadedModuleSet(
                 main,
-                new AddonSettings(main.node("settings")),
+                new AddonConfig(main.node("settings")),
                 targetSelector,
                 new SelectedTargetConfiguration(read(SELECTED_TARGET, true))
         );
@@ -181,9 +182,9 @@ public final class ReactMenuAddon extends JavaAddon {
 
     }
 
-    private record LoadedModules(
+    private record LoadedModuleSet(
             @NotNull CommentedConfigurationNode main,
-            @NotNull AddonSettings settings,
+            @NotNull AddonConfig settings,
             @NotNull TargetSelectorConfiguration targetSelector,
             @NotNull SelectedTargetConfiguration selectedTarget
     ) {

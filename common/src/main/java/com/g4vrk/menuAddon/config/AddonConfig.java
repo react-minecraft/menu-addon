@@ -3,7 +3,7 @@ package com.g4vrk.menuAddon.config;
 import org.jetbrains.annotations.NotNull;
 import org.spongepowered.configurate.ConfigurationNode;
 
-public final class AddonSettings {
+public final class AddonConfig {
 
     private final String argumentLiteral;
     private final String permission;
@@ -11,7 +11,7 @@ public final class AddonSettings {
     private final String probabilityFormat;
     private final ElapsedTimeFormat elapsedTimeFormat;
 
-    public AddonSettings(
+    public AddonConfig(
             final @NotNull ConfigurationNode node
     ) {
 

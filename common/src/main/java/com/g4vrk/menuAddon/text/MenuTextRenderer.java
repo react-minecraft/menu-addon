@@ -1,6 +1,7 @@
 package com.g4vrk.menuAddon.text;
 
-import com.g4vrk.menuAddon.config.AddonSettings;
+import org.bukkit.entity.Player;
+import com.g4vrk.menuAddon.config.AddonConfig;
 import com.g4vrk.menuAddon.config.ItemConfiguration;
 import com.g4vrk.menuAddon.config.SelectedTargetConfiguration;
 import com.g4vrk.menuAddon.config.TargetSelectorConfiguration;
@@ -36,12 +37,12 @@ public final class MenuTextRenderer {
     private static final DecimalFormatSymbols US_SYMBOLS = DecimalFormatSymbols.getInstance(Locale.US);
 
     private final TextFormatter text;
-    private final AddonSettings settings;
+    private final AddonConfig settings;
     private final ElapsedTimeFormatter elapsedTimeFormatter;
 
     public MenuTextRenderer(
             final @NotNull TextFormatter text,
-            final @NotNull AddonSettings settings
+            final @NotNull AddonConfig settings
     ) {
 
         this.text = text;
@@ -100,7 +101,7 @@ public final class MenuTextRenderer {
         this.applyTargetMeta(meta, config, target, history);
 
         if (config.usePlayerHead() && meta instanceof SkullMeta skullMeta) {
-            skullMeta.setOwningPlayer(target.bukkit());
+            skullMeta.setOwningPlayer(((Player) target.platform().handle()));
         }
 
         item.setItemMeta(meta);

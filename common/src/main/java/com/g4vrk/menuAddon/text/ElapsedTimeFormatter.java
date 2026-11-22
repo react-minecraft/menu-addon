@@ -1,6 +1,6 @@
 package com.g4vrk.menuAddon.text;
 
-import com.g4vrk.menuAddon.config.AddonSettings;
+import com.g4vrk.menuAddon.config.AddonConfig;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
@@ -9,10 +9,10 @@ import java.util.concurrent.TimeUnit;
 
 public final class ElapsedTimeFormatter {
 
-    private final AddonSettings.ElapsedTimeFormat format;
+    private final AddonConfig.ElapsedTimeFormat format;
 
     public ElapsedTimeFormatter(
-            final @NotNull AddonSettings.ElapsedTimeFormat format
+            final @NotNull AddonConfig.ElapsedTimeFormat format
     ) {
 
         this.format = format;
