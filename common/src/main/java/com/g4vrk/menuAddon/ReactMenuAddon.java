@@ -10,7 +10,7 @@ import com.g4vrk.menuAddon.listener.HistoryEntryAddedListener;
 import com.g4vrk.menuAddon.listener.MenuListener;
 import com.g4vrk.menuAddon.menu.MenuManager;
 import com.g4vrk.react.api.addon.JavaAddon;
-import com.g4vrk.react.api.extension.AddonEnvironment;
+import com.g4vrk.react.api.extension.environment.AddonEnvironment;
 import com.g4vrk.schedula.task.TickSchedule;
 import net.kyori.adventure.audience.Audience;
 import org.jetbrains.annotations.NotNull;

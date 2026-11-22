@@ -444,7 +444,9 @@ public final class MenuTextRenderer {
 
     }
 
-    /** Mean probability of a player's retained history, or 0 when it is empty. */
+    /**
+     * Mean probability of a player's retained history, or 0 when it is empty.
+     */
     public static double averageProbability(final @NotNull TrackedPlayer target) {
 
         return averageProbability(target.history());
