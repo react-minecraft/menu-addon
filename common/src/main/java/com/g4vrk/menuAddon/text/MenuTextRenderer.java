@@ -18,6 +18,7 @@ import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.inventory.meta.PotionMeta;
 import org.bukkit.inventory.meta.SkullMeta;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.math.RoundingMode;
 import java.text.DecimalFormat;
@@ -32,6 +33,7 @@ import java.util.Map;
 public final class MenuTextRenderer {
 
     private static final String FORMATTED_FAILURES = "{target.failures:formatted}";
+    private static final DecimalFormatSymbols US_SYMBOLS = DecimalFormatSymbols.getInstance(Locale.US);
 
     private final TextFormatter text;
     private final AddonSettings settings;
@@ -95,10 +97,7 @@ public final class MenuTextRenderer {
             return item;
         }
 
-        final Map<String, String> placeholders = this.targetPlaceholders(target, history);
-
-        meta.displayName(this.component(config.name(), placeholders));
-        meta.lore(this.targetLore(config, target, history, placeholders));
+        this.applyTargetMeta(meta, config, target, history);
 
         if (config.usePlayerHead() && meta instanceof SkullMeta skullMeta) {
             skullMeta.setOwningPlayer(target.bukkit());
@@ -106,6 +105,42 @@ public final class MenuTextRenderer {
 
         item.setItemMeta(meta);
         return item;
+
+    }
+
+    public @NotNull ItemStack refreshTargetItem(
+            final @Nullable ItemStack existing,
+            final @NotNull TargetSelectorConfiguration.TargetItem config,
+            final @NotNull TrackedPlayer target,
+            final @NotNull List<HistoryEntry> history
+    ) {
+
+        final Material material = config.usePlayerHead() ? Material.PLAYER_HEAD : config.material();
+        if (existing == null || existing.getType() != material) {
+            return this.targetItem(config, target, history);
+        }
+        final ItemMeta meta = existing.getItemMeta();
+        if (meta == null) {
+            return this.targetItem(config, target, history);
+        }
+
+        this.applyTargetMeta(meta, config, target, history);
+        existing.setItemMeta(meta);
+        return existing;
+
+    }
+
+    private void applyTargetMeta(
+            final @NotNull ItemMeta meta,
+            final @NotNull TargetSelectorConfiguration.TargetItem config,
+            final @NotNull TrackedPlayer target,
+            final @NotNull List<HistoryEntry> history
+    ) {
+
+        final Map<String, String> placeholders = this.targetPlaceholders(target, history);
+
+        meta.displayName(this.component(config.name(), placeholders));
+        meta.lore(this.targetLore(config, target, history, placeholders));
 
     }
 
@@ -401,7 +436,7 @@ public final class MenuTextRenderer {
 
         final DecimalFormat format = new DecimalFormat(
                 pattern,
-                DecimalFormatSymbols.getInstance(Locale.US)
+                US_SYMBOLS
         );
         format.setRoundingMode(RoundingMode.HALF_UP);
         return format.format(value);

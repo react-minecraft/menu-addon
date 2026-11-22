@@ -184,7 +184,7 @@ public final class MenuManager implements MenuActionExecutor.Navigator {
             final @NotNull TrackedPlayer changedTarget
     ) {
 
-        for (final Player viewer : Bukkit.getOnlinePlayers()) {
+        for (final Player viewer : this.openViewers()) {
             this.scheduleForViewer(viewer, () -> this.refresh(viewer, changedTarget));
         }
 
@@ -198,9 +198,29 @@ public final class MenuManager implements MenuActionExecutor.Navigator {
 
         this.apply(settings, targetSelectorConfig, selectedTargetConfig);
 
-        for (final Player viewer : Bukkit.getOnlinePlayers()) {
+        for (final Player viewer : this.openViewers()) {
             this.scheduleForViewer(viewer, () -> this.refreshOpenMenu(viewer));
         }
+
+    }
+
+    private @NotNull List<Player> openViewers() {
+
+        final List<UUID> viewerIds;
+        synchronized (this.viewersLock) {
+            if (this.openMenus.isEmpty()) {
+                return List.of();
+            }
+            viewerIds = new ArrayList<>(this.openMenus.keySet());
+        }
+        final List<Player> viewers = new ArrayList<>(viewerIds.size());
+        for (final UUID viewerId : viewerIds) {
+            final Player viewer = Bukkit.getPlayer(viewerId);
+            if (viewer != null) {
+                viewers.add(viewer);
+            }
+        }
+        return viewers;
 
     }
 
@@ -370,7 +390,12 @@ public final class MenuManager implements MenuActionExecutor.Navigator {
             );
             holder.addTimeUpdate(() -> holder.getInventory().setItem(
                     slot,
-                    state.renderer().targetItem(state.targetSelectorConfig().targetItem(), target, history)
+                    state.renderer().refreshTargetItem(
+                            holder.getInventory().getItem(slot),
+                            state.targetSelectorConfig().targetItem(),
+                            target,
+                            history
+                    )
             ));
             this.bind(
                     holder,
