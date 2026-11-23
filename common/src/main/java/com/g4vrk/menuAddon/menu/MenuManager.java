@@ -5,6 +5,7 @@ import com.g4vrk.menuAddon.config.AddonConfig;
 import com.g4vrk.menuAddon.config.ItemConfiguration;
 import com.g4vrk.menuAddon.config.SelectedTargetConfiguration;
 import com.g4vrk.menuAddon.config.TargetSelectorConfiguration;
+import com.g4vrk.menuAddon.menu.bukkit.BukkitMenuItemRenderer;
 import com.g4vrk.menuAddon.text.MenuTextRenderer;
 import com.g4vrk.menuAddon.util.InventoryViewCompat;
 import com.g4vrk.react.api.player.HistoryEntry;
@@ -386,15 +387,14 @@ public final class MenuManager implements MenuActionExecutor.Navigator {
             final List<HistoryEntry> history = target.history();
             holder.getInventory().setItem(
                     slot,
-                    state.renderer().targetItem(state.targetSelectorConfig().targetItem(), target, history)
+                    BukkitMenuItemRenderer.render(
+                            state.renderer().targetItem(state.targetSelectorConfig().targetItem(), target, history)
+                    )
             );
             holder.addTimeUpdate(() -> holder.getInventory().setItem(
                     slot,
-                    state.renderer().refreshTargetItem(
-                            holder.getInventory().getItem(slot),
-                            state.targetSelectorConfig().targetItem(),
-                            target,
-                            history
+                    BukkitMenuItemRenderer.render(
+                            state.renderer().targetItem(state.targetSelectorConfig().targetItem(), target, history)
                     )
             ));
             this.bind(
@@ -445,16 +445,25 @@ public final class MenuManager implements MenuActionExecutor.Navigator {
             final List<HistoryEntry> entries = groups.get(offset + index);
             holder.getInventory().setItem(
                     slot,
-                    state.renderer().historyGroupItem(
-                            state.selectedTargetConfig().entryItem(),
-                            target,
-                            entries,
-                            menuPlaceholders
+                    BukkitMenuItemRenderer.render(
+                            state.renderer().historyGroupItem(
+                                    state.selectedTargetConfig().entryItem(),
+                                    target,
+                                    entries,
+                                    menuPlaceholders
+                            )
                     )
             );
             holder.addTimeUpdate(() -> holder.getInventory().setItem(
                     slot,
-                    state.renderer().historyGroupItem(state.selectedTargetConfig().entryItem(), target, entries, menuPlaceholders)
+                    BukkitMenuItemRenderer.render(
+                            state.renderer().historyGroupItem(
+                                    state.selectedTargetConfig().entryItem(),
+                                    target,
+                                    entries,
+                                    menuPlaceholders
+                            )
+                    )
             ));
             this.bind(
                     holder,
@@ -478,7 +487,10 @@ public final class MenuManager implements MenuActionExecutor.Navigator {
 
         for (final ItemConfiguration item : items.values()) {
             for (final int slot : item.slots()) {
-                holder.getInventory().setItem(slot, state.renderer().staticItem(item, placeholders));
+                holder.getInventory().setItem(
+                        slot,
+                        BukkitMenuItemRenderer.render(state.renderer().staticItem(item, placeholders))
+                );
                 this.bind(
                         holder,
                         slot,

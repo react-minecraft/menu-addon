@@ -1,11 +1,10 @@
 package com.g4vrk.menuAddon.text;
 
-import org.bukkit.entity.Player;
-import com.cryptomorin.xseries.XMaterial;
 import com.g4vrk.menuAddon.config.AddonConfig;
 import com.g4vrk.menuAddon.config.ItemConfiguration;
 import com.g4vrk.menuAddon.config.SelectedTargetConfiguration;
 import com.g4vrk.menuAddon.config.TargetSelectorConfiguration;
+import com.g4vrk.menuAddon.menu.render.MenuItemData;
 import com.g4vrk.react.api.check.Check;
 import com.g4vrk.react.api.player.HistoryEntry;
 import com.g4vrk.react.api.player.TrackedPlayer;
@@ -13,15 +12,7 @@ import com.g4vrk.react.api.text.TextFormatter;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.TextColor;
 import net.kyori.adventure.text.format.TextDecoration;
-import org.bukkit.Color;
-import org.bukkit.DyeColor;
-import org.bukkit.Material;
-import org.bukkit.inventory.ItemStack;
-import org.bukkit.inventory.meta.ItemMeta;
-import org.bukkit.inventory.meta.PotionMeta;
-import org.bukkit.inventory.meta.SkullMeta;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 
 import java.math.RoundingMode;
 import java.text.DecimalFormat;
@@ -33,6 +24,9 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
+/**
+ * Builds platform-independent menu labels, item content, and placeholders.
+ */
 public final class MenuTextRenderer {
 
     private static final String FORMATTED_FAILURES = "{target.failures:formatted}";
@@ -62,96 +56,39 @@ public final class MenuTextRenderer {
 
     }
 
-    public @NotNull ItemStack staticItem(
+    public @NotNull MenuItemData staticItem(
             final @NotNull ItemConfiguration config,
             final @NotNull Map<String, String> placeholders
     ) {
 
-        final ItemStack item = new ItemStack(resolveMaterial(config.material()));
-        final ItemMeta meta = item.getItemMeta();
-
-        if (meta == null) {
-            return item;
-        }
-
-        meta.displayName(this.component(config.name(), placeholders));
-        meta.lore(this.components(config.lore(), placeholders));
-
-        if (meta instanceof PotionMeta potionMeta && config.color() != null) {
-            potionMeta.setColor(Color.fromRGB(Integer.parseInt(config.color().substring(1), 16)));
-        }
-
-        item.setItemMeta(meta);
-        return item;
+        return new MenuItemData(
+                config.material(),
+                config.color(),
+                this.component(config.name(), placeholders),
+                this.components(config.lore(), placeholders),
+                null
+        );
 
     }
 
-    public @NotNull ItemStack targetItem(
-            final @NotNull TargetSelectorConfiguration.TargetItem config,
-            final @NotNull TrackedPlayer target,
-            final @NotNull List<HistoryEntry> history
-    ) {
-
-        final Material material = config.usePlayerHead()
-                ? Material.PLAYER_HEAD
-                : resolveMaterial(config.material());
-        final ItemStack item = new ItemStack(material);
-        final ItemMeta meta = item.getItemMeta();
-
-        if (meta == null) {
-            return item;
-        }
-
-        this.applyTargetMeta(meta, config, target, history);
-
-        if (config.usePlayerHead() && meta instanceof SkullMeta skullMeta) {
-            skullMeta.setOwningPlayer(((Player) target.platform().handle()));
-        }
-
-        item.setItemMeta(meta);
-        return item;
-
-    }
-
-    public @NotNull ItemStack refreshTargetItem(
-            final @Nullable ItemStack existing,
-            final @NotNull TargetSelectorConfiguration.TargetItem config,
-            final @NotNull TrackedPlayer target,
-            final @NotNull List<HistoryEntry> history
-    ) {
-
-        final Material material = config.usePlayerHead()
-                ? Material.PLAYER_HEAD
-                : resolveMaterial(config.material());
-        if (existing == null || existing.getType() != material) {
-            return this.targetItem(config, target, history);
-        }
-        final ItemMeta meta = existing.getItemMeta();
-        if (meta == null) {
-            return this.targetItem(config, target, history);
-        }
-
-        this.applyTargetMeta(meta, config, target, history);
-        existing.setItemMeta(meta);
-        return existing;
-
-    }
-
-    private void applyTargetMeta(
-            final @NotNull ItemMeta meta,
+    public @NotNull MenuItemData targetItem(
             final @NotNull TargetSelectorConfiguration.TargetItem config,
             final @NotNull TrackedPlayer target,
             final @NotNull List<HistoryEntry> history
     ) {
 
         final Map<String, String> placeholders = this.targetPlaceholders(target, history);
-
-        meta.displayName(this.component(config.name(), placeholders));
-        meta.lore(this.targetLore(config, target, history, placeholders));
+        return new MenuItemData(
+                config.usePlayerHead() ? "minecraft:player_head" : config.material(),
+                null,
+                this.component(config.name(), placeholders),
+                this.targetLore(config, target, history, placeholders),
+                config.usePlayerHead() ? target.uniqueId() : null
+        );
 
     }
 
-    public @NotNull ItemStack historyGroupItem(
+    public @NotNull MenuItemData historyGroupItem(
             final @NotNull SelectedTargetConfiguration.EntryItem config,
             final @NotNull TrackedPlayer target,
             final @NotNull List<HistoryEntry> entries,
@@ -161,16 +98,6 @@ public final class MenuTextRenderer {
         final GroupStatistic statistic = GroupStatistic.calculate(entries);
         final Map<String, String> placeholders = new HashMap<>(menuPlaceholders);
         this.putGroupStatistic(placeholders, statistic);
-
-        final Material material = this.historyGroupMaterial(config, statistic);
-        final ItemStack item = new ItemStack(material);
-        final ItemMeta meta = item.getItemMeta();
-
-        if (meta == null) {
-            return item;
-        }
-
-        meta.displayName(this.component(config.name(), placeholders));
 
         final List<Component> lore = new ArrayList<>();
         lore.addAll(this.components(config.loreHeader(), placeholders));
@@ -182,9 +109,13 @@ public final class MenuTextRenderer {
         }
 
         lore.addAll(this.components(config.loreFooter(), placeholders));
-        meta.lore(lore);
-        item.setItemMeta(meta);
-        return item;
+        return new MenuItemData(
+                this.historyGroupMaterial(config, statistic),
+                null,
+                this.component(config.name(), placeholders),
+                lore,
+                null
+        );
 
     }
 
@@ -371,48 +302,23 @@ public final class MenuTextRenderer {
 
     }
 
-    private @NotNull Material historyGroupMaterial(
+    private @NotNull String historyGroupMaterial(
             final @NotNull SelectedTargetConfiguration.EntryItem config,
             final @NotNull GroupStatistic statistic
     ) {
 
         if (!config.coloredPane().enabled()) {
-            return resolveMaterial(config.material());
+            return config.material();
         }
 
-        final DyeColor dyeColor = dyeColor(statistic.averageProbability());
-        final Material pane = Material.matchMaterial(dyeColor.name() + "_STAINED_GLASS_PANE");
-        return pane == null ? resolveMaterial(config.material()) : pane;
-
-    }
-
-    private static @NotNull Material resolveMaterial(
-            final @NotNull String configured
-    ) {
-
-        final String material = configured.startsWith("minecraft:")
-                ? configured.substring("minecraft:".length())
-                : configured;
-        return XMaterial.matchXMaterial(material)
-                .map(XMaterial::get)
-                .filter(Material::isItem)
-                .orElseThrow(() -> new IllegalArgumentException("Unknown item material: " + configured));
-
-    }
-
-    private static @NotNull DyeColor dyeColor(
-            final double rawValue
-    ) {
-
-        final double value = Math.max(0.0D, Math.min(1.0D, rawValue));
+        final double value = Math.max(0.0D, Math.min(1.0D, statistic.averageProbability()));
         final int level = Math.min(4, (int) Math.floor(value * 5.0D));
-
         return switch (level) {
-                case 0 -> DyeColor.GREEN;
-                case 1 -> DyeColor.LIME;
-                case 2 -> DyeColor.YELLOW;
-                case 3 -> DyeColor.ORANGE;
-                default -> DyeColor.RED;
+            case 0 -> "minecraft:green_stained_glass_pane";
+            case 1 -> "minecraft:lime_stained_glass_pane";
+            case 2 -> "minecraft:yellow_stained_glass_pane";
+            case 3 -> "minecraft:orange_stained_glass_pane";
+            default -> "minecraft:red_stained_glass_pane";
         };
 
     }
