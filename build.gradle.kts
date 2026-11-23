@@ -45,7 +45,12 @@ subprojects {
     plugins.withType<JavaPlugin> {
 
         configurations.configureEach {
-            if (name == "compileClasspath" || name.endsWith("CompileClasspath")) {
+            if (name == "testRuntimeClasspath") {
+                attributes.attribute(
+                    TargetJvmVersion.TARGET_JVM_VERSION_ATTRIBUTE,
+                    JavaVersion.current().majorVersion.toInt()
+                )
+            } else if (name == "compileClasspath" || name.endsWith("CompileClasspath")) {
                 attributes.attribute(TargetJvmVersion.TARGET_JVM_VERSION_ATTRIBUTE, 17)
             }
         }
