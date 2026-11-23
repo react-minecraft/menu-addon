@@ -1,6 +1,7 @@
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 import org.gradle.kotlin.dsl.invoke
 import org.gradle.kotlin.dsl.withType
+import org.gradle.api.attributes.java.TargetJvmVersion
 import util.VersionUtility
 import xyz.jpenilla.runpaper.task.RunServer
 
@@ -43,6 +44,12 @@ subprojects {
 
     plugins.withType<JavaPlugin> {
 
+        configurations.configureEach {
+            if (name == "compileClasspath" || name.endsWith("CompileClasspath")) {
+                attributes.attribute(TargetJvmVersion.TARGET_JVM_VERSION_ATTRIBUTE, 17)
+            }
+        }
+
         dependencies {
             "testImplementation"(
                 platform(rootProject.libs.junit.bom)
@@ -64,8 +71,8 @@ subprojects {
 
     extensions.configure<JavaPluginExtension> {
 
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
+        sourceCompatibility = JavaVersion.VERSION_16
+        targetCompatibility = JavaVersion.VERSION_16
 
         withSourcesJar()
 
@@ -77,6 +84,7 @@ subprojects {
         withType<JavaCompile>().configureEach {
 
             options.encoding = "UTF-8"
+            options.release.set(16)
 
         }
 
