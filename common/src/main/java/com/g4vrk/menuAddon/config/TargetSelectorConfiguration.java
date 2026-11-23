@@ -1,6 +1,5 @@
 package com.g4vrk.menuAddon.config;
 
-import org.bukkit.Material;
 import org.jetbrains.annotations.NotNull;
 import org.spongepowered.configurate.ConfigurationNode;
 
@@ -122,7 +121,7 @@ public final class TargetSelectorConfiguration {
 
     public record TargetItem(
             boolean usePlayerHead,
-            @NotNull Material material,
+            @NotNull String material,
             @NotNull String name,
             @NotNull List<String> lore,
             @NotNull FailureList failures,
@@ -139,7 +138,7 @@ public final class TargetSelectorConfiguration {
                     node.node("material", "use-player-head").getBoolean(true),
                     ConfigurationUtil.material(
                             node.node("material", "otherwise"),
-                            Material.PLAYER_HEAD
+                            "minecraft:player_head"
                     ),
                     node.node("name").getString("<white>{player.name}"),
                     ConfigurationUtil.strings(node.node("lore")),

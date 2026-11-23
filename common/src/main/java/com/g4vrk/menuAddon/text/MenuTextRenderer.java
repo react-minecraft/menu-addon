@@ -1,6 +1,7 @@
 package com.g4vrk.menuAddon.text;
 
 import org.bukkit.entity.Player;
+import com.cryptomorin.xseries.XMaterial;
 import com.g4vrk.menuAddon.config.AddonConfig;
 import com.g4vrk.menuAddon.config.ItemConfiguration;
 import com.g4vrk.menuAddon.config.SelectedTargetConfiguration;
@@ -12,6 +13,7 @@ import com.g4vrk.react.api.text.TextFormatter;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.TextColor;
 import net.kyori.adventure.text.format.TextDecoration;
+import org.bukkit.Color;
 import org.bukkit.DyeColor;
 import org.bukkit.Material;
 import org.bukkit.inventory.ItemStack;
@@ -65,7 +67,7 @@ public final class MenuTextRenderer {
             final @NotNull Map<String, String> placeholders
     ) {
 
-        final ItemStack item = new ItemStack(config.material());
+        final ItemStack item = new ItemStack(resolveMaterial(config.material()));
         final ItemMeta meta = item.getItemMeta();
 
         if (meta == null) {
@@ -76,7 +78,7 @@ public final class MenuTextRenderer {
         meta.lore(this.components(config.lore(), placeholders));
 
         if (meta instanceof PotionMeta potionMeta && config.color() != null) {
-            potionMeta.setColor(config.color());
+            potionMeta.setColor(Color.fromRGB(Integer.parseInt(config.color().substring(1), 16)));
         }
 
         item.setItemMeta(meta);
@@ -90,7 +92,9 @@ public final class MenuTextRenderer {
             final @NotNull List<HistoryEntry> history
     ) {
 
-        final Material material = config.usePlayerHead() ? Material.PLAYER_HEAD : config.material();
+        final Material material = config.usePlayerHead()
+                ? Material.PLAYER_HEAD
+                : resolveMaterial(config.material());
         final ItemStack item = new ItemStack(material);
         final ItemMeta meta = item.getItemMeta();
 
@@ -116,7 +120,9 @@ public final class MenuTextRenderer {
             final @NotNull List<HistoryEntry> history
     ) {
 
-        final Material material = config.usePlayerHead() ? Material.PLAYER_HEAD : config.material();
+        final Material material = config.usePlayerHead()
+                ? Material.PLAYER_HEAD
+                : resolveMaterial(config.material());
         if (existing == null || existing.getType() != material) {
             return this.targetItem(config, target, history);
         }
@@ -371,12 +377,26 @@ public final class MenuTextRenderer {
     ) {
 
         if (!config.coloredPane().enabled()) {
-            return config.material();
+            return resolveMaterial(config.material());
         }
 
         final DyeColor dyeColor = dyeColor(statistic.averageProbability());
         final Material pane = Material.matchMaterial(dyeColor.name() + "_STAINED_GLASS_PANE");
-        return pane == null ? config.material() : pane;
+        return pane == null ? resolveMaterial(config.material()) : pane;
+
+    }
+
+    private static @NotNull Material resolveMaterial(
+            final @NotNull String configured
+    ) {
+
+        final String material = configured.startsWith("minecraft:")
+                ? configured.substring("minecraft:".length())
+                : configured;
+        return XMaterial.matchXMaterial(material)
+                .map(XMaterial::get)
+                .filter(Material::isItem)
+                .orElseThrow(() -> new IllegalArgumentException("Unknown item material: " + configured));
 
     }
 

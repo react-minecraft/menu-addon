@@ -1,8 +1,5 @@
 package com.g4vrk.menuAddon.config;
 
-import com.cryptomorin.xseries.XMaterial;
-import org.bukkit.Color;
-import org.bukkit.Material;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.spongepowered.configurate.ConfigurationNode;
@@ -99,9 +96,9 @@ final class ConfigurationUtil {
 
     }
 
-    static @NotNull Material material(
+    static @NotNull String material(
             final @NotNull ConfigurationNode node,
-            final @NotNull Material fallback
+            final @NotNull String fallback
     ) {
 
         final String configured = node.getString();
@@ -110,9 +107,8 @@ final class ConfigurationUtil {
             return fallback;
         }
 
-        final Material material = XMaterial.matchXMaterial(configured.trim()).map(XMaterial::get).orElse(null);
-
-        if (material == null || !material.isItem()) {
+        final String material = configured.trim().toLowerCase(Locale.ROOT);
+        if (!material.matches("(?:[a-z0-9_.-]+:)?[a-z0-9_./ -]+")) {
             throw new IllegalArgumentException("Unknown item material: " + configured);
         }
 
@@ -120,7 +116,7 @@ final class ConfigurationUtil {
 
     }
 
-    static @Nullable Color color(
+    static @Nullable String color(
             final @NotNull ConfigurationNode node
     ) {
 
@@ -136,7 +132,7 @@ final class ConfigurationUtil {
             throw new IllegalArgumentException("Invalid RGB color: " + value);
         }
 
-        return Color.fromRGB(Integer.parseInt(hex, 16));
+        return "#" + hex.toLowerCase(Locale.ROOT);
 
     }
 

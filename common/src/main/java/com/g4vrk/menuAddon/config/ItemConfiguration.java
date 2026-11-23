@@ -1,7 +1,5 @@
 package com.g4vrk.menuAddon.config;
 
-import org.bukkit.Color;
-import org.bukkit.Material;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.spongepowered.configurate.ConfigurationNode;
@@ -9,8 +7,8 @@ import org.spongepowered.configurate.ConfigurationNode;
 import java.util.List;
 
 public record ItemConfiguration(
-        @NotNull Material material,
-        @Nullable Color color,
+        @NotNull String material,
+        @Nullable String color,
         @NotNull String name,
         @NotNull List<String> lore,
         @NotNull List<Integer> slots,
@@ -24,7 +22,7 @@ public record ItemConfiguration(
     ) {
 
         return new ItemConfiguration(
-                ConfigurationUtil.material(node.node("material"), Material.STONE),
+                ConfigurationUtil.material(node.node("material"), "minecraft:stone"),
                 ConfigurationUtil.color(node.node("color")),
                 node.node("name").getString("&r"),
                 ConfigurationUtil.strings(node.node("lore")),

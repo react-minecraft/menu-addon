@@ -1,6 +1,5 @@
 package com.g4vrk.menuAddon.config;
 
-import org.bukkit.Material;
 import org.jetbrains.annotations.NotNull;
 import org.spongepowered.configurate.ConfigurationNode;
 
@@ -83,7 +82,7 @@ public final class SelectedTargetConfiguration {
             @NotNull String decimalFormat,
             @NotNull String failureFormat,
             @NotNull ColoredPane coloredPane,
-            @NotNull Material material,
+            @NotNull String material,
             @NotNull String name,
             @NotNull List<String> loreHeader,
             @NotNull List<String> loreFooter,
@@ -108,7 +107,7 @@ public final class SelectedTargetConfiguration {
                     ColoredPane.read(node.node("material", "colored-pane")),
                     ConfigurationUtil.material(
                             node.node("material", "otherwise"),
-                            Material.WHITE_STAINED_GLASS_PANE
+                            "minecraft:white_stained_glass_pane"
                     ),
                     node.node("name").getString(
                             "<white>Средняя вероятность: {statistic.average-probability:colored}"
