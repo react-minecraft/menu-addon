@@ -2,15 +2,22 @@
 
 paper-api = "1.19.4-R0.1-SNAPSHOT"
 minecraft = "1.19.4"
+minestom = "2026.10.07-26.2"
+sponge-api = "17.0.0"
+fabric-loom = "1.16.2"
+fabric-loader = "0.19.3"
+fabric-api = "0.161.0+26.2"
+fabric-minecraft = "26.2"
 
 # React commit on react-minecraft/plugin, built by JitPack.
 react = "df00c45"
 actions = "a0508d1"
-schedula = "b902674126"
+schedula = "f7fcce3"
 
 packetevents = "2.13.0"
 configurate = "4.2.0"
 cloud-paper = "2.0.0"
+adventure-api = "4.10.0"
 
 junit = "6.1.3"
 junit-platform = "6.1.3"
@@ -33,6 +40,12 @@ schedula-common = { module = "com.github.g4vrk.Schedula:common", version.ref = "
 packetevents = { module = "com.github.retrooper:packetevents-spigot", version.ref = "packetevents" }
 configurate-yaml = { module = "org.spongepowered:configurate-yaml", version.ref = "configurate" }
 cloud-paper = { module = "org.incendo:cloud-paper", version.ref = "cloud-paper" }
+cloud-core = { module = "org.incendo:cloud-core", version.ref = "cloud-paper" }
+adventure-api = { module = "net.kyori:adventure-api", version.ref = "adventure-api" }
+minestom = { module = "net.minestom:minestom", version.ref = "minestom" }
+sponge-api = { module = "org.spongepowered:spongeapi", version.ref = "sponge-api" }
+fabric-loader = { module = "net.fabricmc:fabric-loader", version.ref = "fabric-loader" }
+fabric-api = { module = "net.fabricmc.fabric-api:fabric-api", version.ref = "fabric-api" }
 
 junit-bom = { module = "org.junit:junit-bom", version.ref = "junit" }
 junit-jupiter = { module = "org.junit.jupiter:junit-jupiter" }
@@ -44,3 +57,4 @@ lombok = { module = "org.projectlombok:lombok", version.ref = "lombok" }
 
 shadow = { id = "com.gradleup.shadow", version.ref = "shadow" }
 run-paper = { id = "xyz.jpenilla.run-paper", version.ref = "run-task" }
+fabric-loom = { id = "net.fabricmc.fabric-loom", version.ref = "fabric-loom" }

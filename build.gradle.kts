@@ -99,6 +99,9 @@ subprojects {
             archiveClassifier = ""
 
             duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+            filesMatching("META-INF/services/com.g4vrk.react.api.extension.bootstrap.ExtensionBootstrap") {
+                duplicatesStrategy = DuplicatesStrategy.INCLUDE
+            }
 
             mergeServiceFiles()
 

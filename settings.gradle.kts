@@ -1,7 +1,18 @@
 rootProject.name = "ReactMenuAddon"
 
+pluginManagement {
+    repositories {
+        maven("https://maven.fabricmc.net/")
+        gradlePluginPortal()
+        mavenCentral()
+    }
+}
+
 include(
-    "common"
+    "common",
+    "minestom",
+    "sponge",
+    "fabric"
 )
 
 dependencyResolutionManagement {
