@@ -41,7 +41,7 @@ public final class MinestomMenuAddon extends JavaAddon {
         this.disabled = false;
         this.environment = environment();
         this.view = new MenuView(this.environment);
-        loadSettings();
+        loadSettings().run();
         this.environment.listeners().register(this.view);
         this.eventNode = EventNode.all("react-menu-addon");
         this.eventNode.addListener(InventoryPreClickEvent.class, this.view::onInventoryClick);
@@ -76,8 +76,7 @@ public final class MinestomMenuAddon extends JavaAddon {
                     final Player player = sender.unwrap(Player.class);
                     if (player != null) {
                         beginReload();
-                        this.view.openPlayers(player, 0);
-                        player.sendMessage(Component.text("Menu templates refreshed."));
+                        player.sendMessage(Component.text("Menu reload requested."));
                     }
                 }));
 
@@ -99,7 +98,7 @@ public final class MinestomMenuAddon extends JavaAddon {
 
     }
 
-    private void loadSettings() {
+    private Runnable loadSettings() {
 
         final String language = "en".equalsIgnoreCase(System.getProperty("user.language")) ? "en" : "ru";
         try {
@@ -122,14 +121,16 @@ public final class MinestomMenuAddon extends JavaAddon {
                     .loadNode());
             final String literal = parsedSettings.argumentLiteral();
             final String permission = parsedSettings.permission();
-            if (this.commandLiteral != null && (!this.commandLiteral.equals(literal)
-                    || !this.commandPermission.equals(permission))) {
-                throw new IllegalStateException("Changing the command literal or permission requires an addon restart");
-            }
-            this.commandLiteral = literal;
-            this.commandPermission = permission;
-            this.view.configure(permission, parsedSettings.includeEmptyHistory(), parsedSelector, parsedSelected,
-                    new MenuTextRenderer(this.environment.text(), parsedSettings));
+            final MenuTextRenderer renderer = new MenuTextRenderer(this.environment.text(), parsedSettings);
+            return () -> {
+                if (this.commandLiteral != null && (!this.commandLiteral.equals(literal)
+                        || !this.commandPermission.equals(permission))) {
+                    throw new IllegalStateException("Changing the command literal or permission requires an addon restart");
+                }
+                this.commandLiteral = literal;
+                this.commandPermission = permission;
+                this.view.configure(permission, parsedSettings.includeEmptyHistory(), parsedSelector, parsedSelected, renderer);
+            };
         } catch (final IOException exception) {
             throw new IllegalStateException("Could not load main-config.yml", exception);
         }
@@ -141,17 +142,26 @@ public final class MinestomMenuAddon extends JavaAddon {
         if (this.disabled || this.pendingReload != null && !this.pendingReload.isDone()) {
             return;
         }
-        this.pendingReload = CompletableFuture.runAsync(this::loadSettings).whenComplete((ignored, failure) -> {
+        this.pendingReload = CompletableFuture.supplyAsync(this::loadSettings).thenCompose(apply -> {
+            final CompletableFuture<Void> applied = new CompletableFuture<>();
             this.environment.scheduler().schedule(() -> {
                 if (this.disabled) {
+                    applied.cancel(false);
                     return;
                 }
-                if (failure == null) {
+                try {
+                    apply.run();
                     this.view.refreshSessions();
-                } else {
-                    throw new IllegalStateException("Could not reload menu templates", failure);
+                    applied.complete(null);
+                } catch (final RuntimeException exception) {
+                    applied.completeExceptionally(exception);
                 }
             }, TickSchedule.instant());
+            return applied;
+        }).whenComplete((ignored, failure) -> {
+            if (failure != null && !this.disabled) {
+                System.getLogger(getClass().getName()).log(System.Logger.Level.ERROR, "Could not reload menu templates", failure);
+            }
         });
 
     }
