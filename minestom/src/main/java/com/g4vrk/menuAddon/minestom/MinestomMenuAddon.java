@@ -17,10 +17,11 @@ import com.g4vrk.react.api.event.check.InferenceResultEvent;
 import com.g4vrk.react.api.platform.player.PlatformPlayer;
 import com.g4vrk.schedula.task.TickSchedule;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.util.RGBLike;
 import net.minestom.server.MinecraftServer;
 import net.minestom.server.component.DataComponents;
-import net.minestom.server.entity.Player;
 import net.minestom.server.entity.GameMode;
+import net.minestom.server.entity.Player;
 import net.minestom.server.event.Event;
 import net.minestom.server.event.EventNode;
 import net.minestom.server.event.inventory.InventoryCloseEvent;
@@ -30,10 +31,12 @@ import net.minestom.server.inventory.InventoryType;
 import net.minestom.server.inventory.click.Click;
 import net.minestom.server.item.ItemStack;
 import net.minestom.server.item.Material;
+import net.minestom.server.item.component.PotionContents;
 import net.minestom.server.network.player.ResolvableProfile;
 import org.jetbrains.annotations.NotNull;
 import org.spongepowered.configurate.ConfigurationNode;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -43,7 +46,6 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-import java.io.IOException;
 
 /**
  * Minestom-native Menu addon runtime.
@@ -393,6 +395,12 @@ public final class MinestomMenuAddon extends JavaAddon {
                     new ResolvableProfile.Partial(ownerName, data.owner(), List.of())
             ));
         }
+        if (data.color() != null && isPotionMaterial(data.material())) {
+            final MenuRgb color = MenuRgb.fromHex(data.color());
+            final PotionContents contents = stack.get(DataComponents.POTION_CONTENTS, PotionContents.EMPTY);
+            stack = stack.with(DataComponents.POTION_CONTENTS, new PotionContents(contents.potion(), color,
+                    contents.customEffects(), contents.customName()));
+        }
         return stack;
 
     }
@@ -410,6 +418,32 @@ public final class MinestomMenuAddon extends JavaAddon {
             throw new IllegalArgumentException("Menu has no content slots after static items are reserved");
         }
         return List.copyOf(result);
+
+    }
+
+    private static boolean isPotionMaterial(final @NotNull String material) {
+
+        final String item = material.substring(material.lastIndexOf(':') + 1).toLowerCase(Locale.ROOT);
+        return item.equals("potion") || item.equals("splash_potion") || item.equals("lingering_potion")
+                || item.equals("tipped_arrow");
+
+    }
+
+    /**
+     * RGB color value used by potion item data.
+     */
+    private record MenuRgb(
+            int red,
+            int green,
+            int blue
+    ) implements RGBLike {
+
+        private static @NotNull MenuRgb fromHex(final @NotNull String color) {
+
+            final int rgb = Integer.parseInt(color.substring(1), 16);
+            return new MenuRgb(rgb >> 16 & 0xff, rgb >> 8 & 0xff, rgb & 0xff);
+
+        }
 
     }
 

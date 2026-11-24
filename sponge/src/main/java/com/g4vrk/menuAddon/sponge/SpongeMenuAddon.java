@@ -19,9 +19,9 @@ import com.g4vrk.menuAddon.text.MenuTextRenderer;
 import net.kyori.adventure.text.Component;
 import org.jetbrains.annotations.NotNull;
 import org.spongepowered.api.data.Keys;
-import org.spongepowered.api.entity.living.player.server.ServerPlayer;
 import org.spongepowered.api.entity.living.player.gamemode.GameMode;
 import org.spongepowered.api.entity.living.player.gamemode.GameModes;
+import org.spongepowered.api.entity.living.player.server.ServerPlayer;
 import org.spongepowered.api.item.ItemTypes;
 import org.spongepowered.api.item.ItemType;
 import org.spongepowered.api.item.inventory.ContainerTypes;
@@ -34,6 +34,7 @@ import org.spongepowered.api.item.inventory.type.ViewableInventory;
 import org.spongepowered.api.profile.GameProfile;
 import org.spongepowered.api.registry.RegistryTypes;
 import org.spongepowered.api.ResourceKey;
+import org.spongepowered.api.util.Color;
 import org.spongepowered.api.world.server.ServerLocation;
 import org.spongepowered.plugin.PluginContainer;
 import org.spongepowered.configurate.ConfigurationNode;
@@ -277,6 +278,9 @@ public final class SpongeMenuAddon extends JavaAddon {
         if (data.owner() != null) {
             builder.add(Keys.GAME_PROFILE, GameProfile.of(data.owner(), ownerName));
         }
+        if (data.color() != null && isPotionMaterial(data.material())) {
+            builder.add(Keys.COLOR, Color.ofRgb(Integer.parseInt(data.color().substring(1), 16)));
+        }
         return builder.build();
 
     }
@@ -291,6 +295,14 @@ public final class SpongeMenuAddon extends JavaAddon {
             case 5 -> ContainerTypes.GENERIC_9X5.get();
             default -> ContainerTypes.GENERIC_9X6.get();
         };
+
+    }
+
+    private static boolean isPotionMaterial(final @NotNull String material) {
+
+        final String item = material.substring(material.lastIndexOf(':') + 1).toLowerCase(Locale.ROOT);
+        return item.equals("potion") || item.equals("splash_potion") || item.equals("lingering_potion")
+                || item.equals("tipped_arrow");
 
     }
 

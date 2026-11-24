@@ -19,6 +19,9 @@ import com.g4vrk.schedula.task.TickSchedule;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.network.chat.Style;
+import net.minecraft.network.chat.TextColor;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.MenuProvider;
@@ -30,20 +33,23 @@ import net.minecraft.world.inventory.ContainerInput;
 import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.ItemLore;
+import net.minecraft.world.item.alchemy.PotionContents;
 import net.minecraft.world.item.component.ResolvableProfile;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.GameType;
+import net.kyori.adventure.text.format.TextDecoration;
 import org.jetbrains.annotations.NotNull;
 import org.spongepowered.configurate.ConfigurationNode;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -141,11 +147,11 @@ public final class FabricMenuAddon extends JavaAddon {
             final TrackedPlayer target = tracked.get(index);
             container.setItem(slots.get(index - page * slots.size()), item(this.renderer.targetItem(
                     this.selector.targetItem(), target, target.history()
-            ), target.name()));
+            )));
         }
-        final String title = this.renderer.replace(
+        final Component title = toMinecraft(this.renderer.title(
                 this.selector.title(), this.renderer.menuPlaceholders(page, pages, null)
-        );
+        ));
         open(viewer, title, container, page, tracked, null, (slot, leftClick) -> {
             final int contentIndex = slots.indexOf(slot);
             if (contentIndex >= 0) {
@@ -181,9 +187,9 @@ public final class FabricMenuAddon extends JavaAddon {
                     this.selected.entryItem(), target, groups.get(index), this.renderer.menuPlaceholders(page, pages, target)
             )));
         }
-        final String title = this.renderer.replace(
+        final Component title = toMinecraft(this.renderer.title(
                 this.selected.title(), this.renderer.menuPlaceholders(page, pages, target)
-        );
+        ));
         open(viewer, title, container, page, List.of(), target, (slot, leftClick) -> {
             final List<Integer> contentSlots = contentSlots(this.selected.allowedSlots(), this.selected.items());
             if (contentSlots.contains(slot)) {
@@ -200,7 +206,7 @@ public final class FabricMenuAddon extends JavaAddon {
 
     private void open(
             final @NotNull ServerPlayer viewer,
-            final @NotNull String title,
+            final @NotNull Component title,
             final @NotNull SimpleContainer container,
             final int page,
             final @NotNull List<TrackedPlayer> players,
@@ -253,31 +259,13 @@ public final class FabricMenuAddon extends JavaAddon {
             };
             this.sessions.put(viewer.getUUID(), new Session(viewer, menu, page, List.copyOf(players), historyTarget));
             return menu;
-        }, Component.literal(title));
+        }, title);
         viewer.openMenu(provider);
 
     }
 
-    private static @NotNull ItemStack item(final @NotNull MenuItemData data) {
-
-        return item(data, "");
-
-    }
-
     private static @NotNull ItemStack item(
-            final @NotNull net.minecraft.world.item.Item item,
-            final @NotNull String name
-    ) {
-
-        final ItemStack stack = new ItemStack(item);
-        stack.set(DataComponents.CUSTOM_NAME, Component.literal(name));
-        return stack;
-
-    }
-
-    private static @NotNull ItemStack item(
-            final @NotNull MenuItemData data,
-            final @NotNull String ownerName
+            final @NotNull MenuItemData data
     ) {
 
         final Identifier key = Identifier.parse(data.material());
@@ -285,12 +273,18 @@ public final class FabricMenuAddon extends JavaAddon {
                 .map(reference -> reference.value())
                 .orElse(Items.STONE);
         final ItemStack stack = new ItemStack(material == Items.AIR ? Items.STONE : material);
-        stack.set(DataComponents.CUSTOM_NAME, Component.literal(plainText(data.name())));
+        stack.set(DataComponents.CUSTOM_NAME, toMinecraft(data.name()));
         stack.set(DataComponents.LORE, new ItemLore(data.lore().stream()
-                .<net.minecraft.network.chat.Component>map(line -> Component.literal(plainText(line)))
+                .<Component>map(FabricMenuAddon::toMinecraft)
                 .toList()));
         if (data.owner() != null) {
             stack.set(DataComponents.PROFILE, ResolvableProfile.createUnresolved(data.owner()));
+        }
+        if (data.color() != null && isPotionMaterial(data.material())) {
+            final PotionContents contents = stack.getOrDefault(DataComponents.POTION_CONTENTS, PotionContents.EMPTY);
+            stack.set(DataComponents.POTION_CONTENTS, new PotionContents(contents.potion(),
+                    Optional.of(Integer.parseInt(data.color().substring(1), 16)),
+                    contents.customEffects(), contents.customName()));
         }
         return stack;
 
@@ -309,16 +303,55 @@ public final class FabricMenuAddon extends JavaAddon {
 
     }
 
-    private static @NotNull String plainText(final @NotNull net.kyori.adventure.text.Component component) {
+    private static @NotNull MutableComponent toMinecraft(
+            final @NotNull net.kyori.adventure.text.Component component
+    ) {
 
-        final StringBuilder result = new StringBuilder();
+        MutableComponent result = Component.empty().withStyle(toMinecraft(component.style()));
         if (component instanceof net.kyori.adventure.text.TextComponent text) {
-            result.append(text.content());
+            result.append(Component.literal(text.content()));
         }
         for (final net.kyori.adventure.text.Component child : component.children()) {
-            result.append(plainText(child));
+            result.append(toMinecraft(child));
         }
-        return result.toString();
+        return result;
+
+    }
+
+    private static @NotNull Style toMinecraft(
+            final net.kyori.adventure.text.format.Style style
+    ) {
+
+        Style result = Style.EMPTY;
+        if (style.color() != null) {
+            result = result.withColor(TextColor.fromRgb(style.color().value()));
+        }
+        if (style.decoration(TextDecoration.BOLD) != TextDecoration.State.NOT_SET) {
+            result = result.withBold(style.decoration(TextDecoration.BOLD) == TextDecoration.State.TRUE);
+        }
+        if (style.decoration(TextDecoration.ITALIC) != TextDecoration.State.NOT_SET) {
+            result = result.withItalic(style.decoration(TextDecoration.ITALIC) == TextDecoration.State.TRUE);
+        }
+        if (style.decoration(TextDecoration.UNDERLINED) != TextDecoration.State.NOT_SET) {
+            result = result.withUnderlined(style.decoration(TextDecoration.UNDERLINED) == TextDecoration.State.TRUE);
+        }
+        if (style.decoration(TextDecoration.STRIKETHROUGH) != TextDecoration.State.NOT_SET) {
+            result = result.withStrikethrough(style.decoration(TextDecoration.STRIKETHROUGH)
+                    == TextDecoration.State.TRUE);
+        }
+        if (style.decoration(TextDecoration.OBFUSCATED) != TextDecoration.State.NOT_SET) {
+            result = result.withObfuscated(style.decoration(TextDecoration.OBFUSCATED)
+                    == TextDecoration.State.TRUE);
+        }
+        return result;
+
+    }
+
+    private static boolean isPotionMaterial(final @NotNull String material) {
+
+        final String item = material.substring(material.lastIndexOf(':') + 1).toLowerCase(Locale.ROOT);
+        return item.equals("potion") || item.equals("splash_potion") || item.equals("lingering_potion")
+                || item.equals("tipped_arrow");
 
     }
 
