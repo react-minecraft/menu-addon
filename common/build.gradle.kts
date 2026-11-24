@@ -9,16 +9,9 @@ repositories {
 
 dependencies {
 
-    compileOnly(libs.paper.api)
-    compileOnly(libs.xseries)
-
     compileOnly(libs.react.api)
     compileOnly(libs.react.common)
-    compileOnly(libs.actions)
-    compileOnly(libs.schedula.common)
-
-    compileOnly(libs.cloud.paper)
     compileOnly(libs.configurate.yaml)
-    compileOnly(libs.packetevents)
+    compileOnly(libs.adventure.api)
 
 }

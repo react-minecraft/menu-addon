@@ -1,29 +1,28 @@
-import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 import org.gradle.api.attributes.java.TargetJvmVersion
 
 plugins {
     id("java-library")
 }
 
+configurations.configureEach {
+    if (name == "compileClasspath" || name.endsWith("CompileClasspath")) {
+        attributes.attribute(TargetJvmVersion.TARGET_JVM_VERSION_ATTRIBUTE, 21)
+    }
+}
+
+repositories {
+    maven("https://repo.spongepowered.org/maven/")
+}
+
 dependencies {
     api(project(":common"))
-
-    compileOnly(libs.minestom)
+    compileOnly(libs.sponge.api)
     compileOnly(libs.cloud.core)
     compileOnly(libs.react.api)
     compileOnly(libs.react.common)
     compileOnly(libs.actions)
     compileOnly(libs.schedula.common)
     compileOnly(libs.configurate.yaml)
-}
-
-configurations.compileClasspath {
-    attributes.attribute(TargetJvmVersion.TARGET_JVM_VERSION_ATTRIBUTE, 25)
-}
-
-java {
-    sourceCompatibility = JavaVersion.VERSION_25
-    targetCompatibility = JavaVersion.VERSION_25
 }
 
 tasks.processResources {
@@ -34,9 +33,9 @@ tasks.processResources {
 }
 
 tasks.withType<JavaCompile>().configureEach {
-    options.release.set(25)
+    options.release.set(21)
 }
 
-tasks.named<ShadowJar>("shadowJar") {
-    archiveFileName.set("menu-addon-minestom-${project.version}.jar")
+tasks.named<com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar>("shadowJar") {
+    archiveFileName.set("${rootProject.name}-${project.name}-${project.version}.jar")
 }

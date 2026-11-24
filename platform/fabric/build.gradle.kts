@@ -1,28 +1,31 @@
-import org.gradle.api.attributes.java.TargetJvmVersion
-
 plugins {
+    alias(libs.plugins.fabric.loom)
     id("java-library")
 }
 
-configurations.configureEach {
-    if (name == "compileClasspath" || name.endsWith("CompileClasspath")) {
-        attributes.attribute(TargetJvmVersion.TARGET_JVM_VERSION_ATTRIBUTE, 21)
-    }
+val addonCommon by configurations.creating {
+    isCanBeConsumed = false
 }
 
 repositories {
-    maven("https://repo.spongepowered.org/maven/")
+    maven("https://maven.fabricmc.net/")
+    maven("https://jitpack.io")
 }
 
 dependencies {
+    minecraft("com.mojang:minecraft:${libs.versions.fabric.minecraft.get()}")
+    compileOnly(libs.fabric.loader)
+    compileOnly(libs.fabric.api)
+
     api(project(":common"))
-    compileOnly(libs.sponge.api)
+    addonCommon(project(":common"))
     compileOnly(libs.cloud.core)
     compileOnly(libs.react.api)
     compileOnly(libs.react.common)
     compileOnly(libs.actions)
     compileOnly(libs.schedula.common)
     compileOnly(libs.configurate.yaml)
+    compileOnly(libs.adventure.api)
 }
 
 tasks.processResources {
@@ -33,9 +36,10 @@ tasks.processResources {
 }
 
 tasks.withType<JavaCompile>().configureEach {
-    options.release.set(21)
+    options.release.set(25)
 }
 
 tasks.named<com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar>("shadowJar") {
-    archiveFileName.set("menu-addon-sponge-${project.version}.jar")
+    archiveFileName.set("${rootProject.name}-${project.name}-${project.version}.jar")
+    configurations = listOf(addonCommon)
 }

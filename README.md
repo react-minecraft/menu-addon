@@ -51,19 +51,19 @@ React предоставляет аддону только игроков онл
 
 ## Установка
 
-1. Соберите аддон или скачайте jar из [GitHub Releases](https://github.com/react-minecraft/menu-addon/releases/latest). Нужен React с API 2.
-2. Положите `menu-addon-<версия>.jar` в `plugins/React/addons/`.
-3. Перезапустите сервер или выполните `/react reboot addons`. Конфиг появится в `plugins/React/addons/menu-addon/`.
+1. Соберите аддон или скачайте JAR из [GitHub Releases](https://github.com/react-minecraft/menu-addon/releases/latest). Нужен React с API 2.
+2. Выберите `ReactMenuAddon-<платформа>-<версия>.jar` и положите его в каталог аддонов React. Для Paper это `plugins/React/addons/`, для Fabric — `config/react/addons/`; для Sponge используйте каталог данных React, а для Minestom передайте путь хосту.
+3. Перезапустите сервер или выполните `/react reboot addons`. Конфиг появится в каталоге `addons/menu-addon/`.
 
 ## Сборка
 
-Для сборки нужен JDK 21.
+Для сборки нужен JDK 25.
 
 ```bash
 ./gradlew build
 ```
 
-Готовый jar лежит в `common/build/libs/`.
+JAR выбранной платформы лежит в `platform/<платформа>/build/libs/` и называется `ReactMenuAddon-<платформа>-<версия>.jar`.
 
 ## Лицензия
 

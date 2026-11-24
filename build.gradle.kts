@@ -95,7 +95,7 @@ subprojects {
 
         withType<ShadowJar>().configureEach {
 
-            archiveFileName = "menu-addon-${project.version}.jar"
+            archiveFileName = "${rootProject.name}-${project.name}-${project.version}.jar"
             archiveClassifier = ""
 
             duplicatesStrategy = DuplicatesStrategy.EXCLUDE
