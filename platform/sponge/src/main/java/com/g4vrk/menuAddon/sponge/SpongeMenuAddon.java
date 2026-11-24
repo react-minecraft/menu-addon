@@ -14,28 +14,16 @@ import com.g4vrk.menuAddon.config.AddonConfig;
 import com.g4vrk.menuAddon.config.ItemConfiguration;
 import com.g4vrk.menuAddon.config.SelectedTargetConfiguration;
 import com.g4vrk.menuAddon.config.TargetSelectorConfiguration;
-import com.g4vrk.menuAddon.menu.render.MenuItemData;
+import com.g4vrk.menuAddon.sponge.action.SpongePlayerAction;
+import com.g4vrk.menuAddon.sponge.menu.SpongeMenuRenderer;
 import com.g4vrk.menuAddon.text.MenuTextRenderer;
 import net.kyori.adventure.text.Component;
 import org.jetbrains.annotations.NotNull;
-import org.spongepowered.api.data.Keys;
-import org.spongepowered.api.entity.living.player.gamemode.GameMode;
-import org.spongepowered.api.entity.living.player.gamemode.GameModes;
 import org.spongepowered.api.entity.living.player.server.ServerPlayer;
-import org.spongepowered.api.item.ItemTypes;
-import org.spongepowered.api.item.ItemType;
-import org.spongepowered.api.item.inventory.ContainerTypes;
-import org.spongepowered.api.item.inventory.ContainerType;
 import org.spongepowered.api.item.inventory.Inventory;
-import org.spongepowered.api.item.inventory.ItemStack;
 import org.spongepowered.api.item.inventory.menu.ClickTypes;
 import org.spongepowered.api.item.inventory.menu.InventoryMenu;
 import org.spongepowered.api.item.inventory.type.ViewableInventory;
-import org.spongepowered.api.profile.GameProfile;
-import org.spongepowered.api.registry.RegistryTypes;
-import org.spongepowered.api.ResourceKey;
-import org.spongepowered.api.util.Color;
-import org.spongepowered.api.world.server.ServerLocation;
 import org.spongepowered.plugin.PluginContainer;
 import org.spongepowered.configurate.ConfigurationNode;
 
@@ -135,14 +123,15 @@ public final class SpongeMenuAddon extends JavaAddon {
         final List<Integer> slots = contentSlots(this.selector.allowedSlots(), this.selector.items());
         final int pages = pages(tracked.size(), slots.size());
         final int page = Math.max(0, Math.min(requestedPage, pages - 1));
-        final ViewableInventory inventory = inventory(this.selector.size());
-        renderStatic(inventory, this.selector.items(), this.renderer.menuPlaceholders(page, pages, null));
-        for (int index = page * slots.size(); index < Math.min((page + 1) * slots.size(), tracked.size()); index++) {
-            final TrackedPlayer target = tracked.get(index);
-            inventory.set(slots.get(index - page * slots.size()), item(this.renderer.targetItem(
-                    this.selector.targetItem(), target, target.history()
-            ), target.name()));
-        }
+        final ViewableInventory inventory = SpongeMenuRenderer.players(
+                (PluginContainer) this.environment.platform().pluginHandle(),
+                this.renderer,
+                this.selector,
+                tracked,
+                slots,
+                page,
+                pages
+        );
         final InventoryMenu menu = inventory.asMenu();
         menu.setTitle(this.renderer.title(this.selector.title(), this.renderer.menuPlaceholders(page, pages, null)));
         menu.setReadOnly(true);
@@ -179,13 +168,16 @@ public final class SpongeMenuAddon extends JavaAddon {
         final List<Integer> slots = contentSlots(this.selected.allowedSlots(), this.selected.items());
         final int pages = pages(groups.size(), slots.size());
         final int page = Math.max(0, Math.min(requestedPage, pages - 1));
-        final ViewableInventory inventory = inventory(this.selected.size());
-        renderStatic(inventory, this.selected.items(), this.renderer.menuPlaceholders(page, pages, target));
-        for (int index = page * slots.size(); index < Math.min((page + 1) * slots.size(), groups.size()); index++) {
-            inventory.set(slots.get(index - page * slots.size()), item(this.renderer.historyGroupItem(
-                    this.selected.entryItem(), target, groups.get(index), this.renderer.menuPlaceholders(page, pages, target)
-            )));
-        }
+        final ViewableInventory inventory = SpongeMenuRenderer.history(
+                (PluginContainer) this.environment.platform().pluginHandle(),
+                this.renderer,
+                this.selected,
+                target,
+                groups,
+                slots,
+                page,
+                pages
+        );
         final InventoryMenu menu = inventory.asMenu();
         menu.setTitle(this.renderer.title(this.selected.title(), this.renderer.menuPlaceholders(page, pages, target)));
         menu.setReadOnly(true);
@@ -236,76 +228,6 @@ public final class SpongeMenuAddon extends JavaAddon {
 
     }
 
-    private ViewableInventory inventory(final int size) {
-
-        final PluginContainer container = (PluginContainer) this.environment.platform().pluginHandle();
-        return ViewableInventory.builder()
-                .type(containerType(size))
-                .completeStructure()
-                .plugin(container)
-                .build();
-
-    }
-
-    private static @NotNull ItemStack item(final @NotNull Component name) {
-
-        return ItemStack.builder()
-                .itemType(ItemTypes.PAPER)
-                .quantity(1)
-                .add(Keys.CUSTOM_NAME, name)
-                .build();
-
-    }
-
-    private static @NotNull ItemStack item(final @NotNull MenuItemData data) {
-
-        return item(data, "");
-
-    }
-
-    private static @NotNull ItemStack item(
-            final @NotNull MenuItemData data,
-            final @NotNull String ownerName
-    ) {
-
-        final String key = data.material().contains(":") ? data.material() : "minecraft:" + data.material();
-        final ItemType type = RegistryTypes.ITEM_TYPE.get().findValue(ResourceKey.resolve(key)).orElse(ItemTypes.PAPER.get());
-        final ItemStack.Builder builder = ItemStack.builder()
-                .itemType(type)
-                .quantity(1)
-                .add(Keys.CUSTOM_NAME, data.name())
-                .add(Keys.LORE, data.lore());
-        if (data.owner() != null) {
-            builder.add(Keys.GAME_PROFILE, GameProfile.of(data.owner(), ownerName));
-        }
-        if (data.color() != null && isPotionMaterial(data.material())) {
-            builder.add(Keys.COLOR, Color.ofRgb(Integer.parseInt(data.color().substring(1), 16)));
-        }
-        return builder.build();
-
-    }
-
-    private static @NotNull ContainerType containerType(final int size) {
-
-        return switch (size / 9) {
-            case 1 -> ContainerTypes.GENERIC_9X1.get();
-            case 2 -> ContainerTypes.GENERIC_9X2.get();
-            case 3 -> ContainerTypes.GENERIC_9X3.get();
-            case 4 -> ContainerTypes.GENERIC_9X4.get();
-            case 5 -> ContainerTypes.GENERIC_9X5.get();
-            default -> ContainerTypes.GENERIC_9X6.get();
-        };
-
-    }
-
-    private static boolean isPotionMaterial(final @NotNull String material) {
-
-        final String item = material.substring(material.lastIndexOf(':') + 1).toLowerCase(Locale.ROOT);
-        return item.equals("potion") || item.equals("splash_potion") || item.equals("lingering_potion")
-                || item.equals("tipped_arrow");
-
-    }
-
     private static @NotNull List<Integer> contentSlots(
             final @NotNull List<Integer> configured,
             final @NotNull Map<String, ItemConfiguration> items
@@ -325,21 +247,6 @@ public final class SpongeMenuAddon extends JavaAddon {
     private static int pages(final int content, final int capacity) {
 
         return Math.max(1, (content + capacity - 1) / capacity);
-
-    }
-
-    private void renderStatic(
-            final @NotNull ViewableInventory inventory,
-            final @NotNull Map<String, ItemConfiguration> items,
-            final @NotNull Map<String, String> placeholders
-    ) {
-
-        for (final ItemConfiguration configured : items.values()) {
-            final MenuItemData rendered = this.renderer.staticItem(configured, placeholders);
-            for (final int slot : configured.slots()) {
-                inventory.set(slot, item(rendered));
-            }
-        }
 
     }
 
@@ -400,31 +307,10 @@ public final class SpongeMenuAddon extends JavaAddon {
         final int end = action.indexOf(']');
         final String name = action.substring(1, end).trim().toLowerCase(Locale.ROOT);
         final String arguments = action.substring(end + 1).trim();
+        if (SpongePlayerAction.execute(viewer, name, arguments, target, placeholders, this.renderer)) {
+            return true;
+        }
         switch (name) {
-            case "gm", "gamemode", "set-game-mode" -> {
-                final String mode = this.renderer.replace(arguments, placeholders).toUpperCase(Locale.ROOT);
-                final GameMode gameMode = switch (mode) {
-                    case "0", "SURVIVAL" -> GameModes.SURVIVAL.get();
-                    case "1", "CREATIVE" -> GameModes.CREATIVE.get();
-                    case "2", "ADVENTURE" -> GameModes.ADVENTURE.get();
-                    case "3", "SPECTATOR" -> GameModes.SPECTATOR.get();
-                    default -> null;
-                };
-                if (gameMode != null) {
-                    viewer.gameMode().set(gameMode);
-                }
-                return true;
-            }
-            case "tp-to-target", "teleport-to-target" -> {
-                if (target != null && target.platform().online()) {
-                    final ServerPlayer nativeTarget = target.platform().unwrap(ServerPlayer.class);
-                    if (nativeTarget != null) {
-                        viewer.setLocationAndRotation(ServerLocation.of(nativeTarget.world(), nativeTarget.position()),
-                                nativeTarget.rotation());
-                    }
-                }
-                return true;
-            }
             case "select-clicked", "open-selected-target" -> {
                 if (target != null) {
                     this.openHistory(viewer, target, 0);
