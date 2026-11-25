@@ -40,6 +40,5 @@ tasks.withType<JavaCompile>().configureEach {
 }
 
 tasks.named<com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar>("shadowJar") {
-    archiveFileName.set("${rootProject.name}-${project.name}-${project.version}.jar")
     configurations = listOf(addonCommon)
 }

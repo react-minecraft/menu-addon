@@ -15,7 +15,7 @@ concurrency:
 
 env:
   TITLE: "React Menu Addon"
-  JARS: "platform/*/build/libs/ReactMenuAddon-*.jar"
+  JARS: "platform/*/build/libs/menu-addon-*.jar"
   PUBLISH: ${{ github.event_name == 'push' && github.ref_name == github.event.repository.default_branch }}
   REACT_RELEASE: ${{ github.event_name == 'push' && github.ref_name == github.event.repository.default_branch && contains(github.event.head_commit.message, '[release]') }}
   GIT_BRANCH: ${{ github.head_ref || github.ref_name }}

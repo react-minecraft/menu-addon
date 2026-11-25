@@ -1,4 +1,3 @@
-import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 import org.gradle.api.attributes.java.TargetJvmVersion
 
 plugins {
@@ -35,8 +34,4 @@ tasks.processResources {
 
 tasks.withType<JavaCompile>().configureEach {
     options.release.set(25)
-}
-
-tasks.named<ShadowJar>("shadowJar") {
-    archiveFileName.set("${rootProject.name}-${project.name}-${project.version}.jar")
 }
