@@ -2,10 +2,10 @@ package com.g4vrk.menuAddon.menu;
 
 import com.g4vrk.functionalActions.parser.ActionParser;
 import com.g4vrk.menuAddon.config.AddonConfig;
-import com.g4vrk.menuAddon.config.ItemConfiguration;
 import com.g4vrk.menuAddon.config.SelectedTargetConfiguration;
 import com.g4vrk.menuAddon.config.TargetSelectorConfiguration;
-import com.g4vrk.menuAddon.menu.bukkit.BukkitMenuItemRenderer;
+import com.g4vrk.menuAddon.menu.action.MenuActionTable;
+import com.g4vrk.menuAddon.menu.bukkit.BukkitMenuRenderer;
 import com.g4vrk.menuAddon.text.MenuTextRenderer;
 import com.g4vrk.menuAddon.util.InventoryViewCompat;
 import com.g4vrk.react.api.player.HistoryEntry;
@@ -17,33 +17,26 @@ import com.g4vrk.schedula.task.scheduler.TaskScheduler;
 import net.kyori.adventure.audience.Audience;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
-import org.bukkit.event.inventory.ClickType;
 import org.bukkit.inventory.Inventory;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
-import java.util.HashMap;
 import java.util.concurrent.CompletableFuture;
 
+/**
+ * Coordinates Bukkit menu opening, template reloads, and live history refreshes.
+ */
 public final class MenuManager implements MenuActionExecutor.Navigator {
 
     private final TrackedPlayerRegistry playerRegistry;
     private final TextFormatter text;
     private final MenuActionExecutor actionExecutor;
     private final TaskScheduler<Player> scheduler;
-    private final Object viewersLock = new Object();
-    private final Map<UUID, MenuHolder> openMenus = new HashMap<>();
-    private final Map<UUID, CompletableFuture<Void>> pendingClose = new HashMap<>();
-    private final Set<UUID> closingViewers = new HashSet<>();
-    private boolean stopping;
-    private long closeGeneration;
+    private final MenuSessionRegistry sessions;
+    private final BukkitMenuRenderer menuRenderer;
 
     private volatile State state;
 
@@ -61,6 +54,7 @@ public final class MenuManager implements MenuActionExecutor.Navigator {
         this.playerRegistry = playerRegistry;
         this.text = text;
         this.scheduler = scheduler;
+        this.sessions = new MenuSessionRegistry(scheduler);
         this.actionExecutor = new MenuActionExecutor(
                 playerRegistry,
                 actionParser,
@@ -69,6 +63,7 @@ public final class MenuManager implements MenuActionExecutor.Navigator {
                 scheduler,
                 this
         );
+        this.menuRenderer = new BukkitMenuRenderer(this.actionExecutor, this::canView);
         this.apply(settings, targetSelectorConfig, selectedTargetConfig);
 
     }
@@ -99,16 +94,20 @@ public final class MenuManager implements MenuActionExecutor.Navigator {
             return;
         }
 
-        final List<TrackedPlayer> targets = this.targets(state);
-        final List<Integer> contentSlots = contentSlots(
+        final List<TrackedPlayer> targets = MenuLayout.targets(
+                this.playerRegistry,
+                state.settings().includeEmptyHistory(),
+                state.targetSelectorConfig()
+        );
+        final List<Integer> contentSlots = MenuLayout.contentSlots(
                 state.targetSelectorConfig().allowedSlots(),
                 state.targetSelectorConfig().items()
         );
-        final int totalPages = pages(targets.size(), contentSlots.size());
-        final int page = clampPage(requestedPage, totalPages);
+        final int totalPages = MenuLayout.pages(targets.size(), contentSlots.size());
+        final int page = MenuLayout.clampPage(requestedPage, totalPages);
         final Map<String, String> placeholders = state.renderer().menuPlaceholders(page, totalPages, null);
         final MenuHolder holder = new MenuHolder(
-                MenuHolder.Type.TARGET_SELECTOR,
+                MenuType.TARGET_SELECTOR,
                 page,
                 totalPages,
                 null
@@ -120,8 +119,14 @@ public final class MenuManager implements MenuActionExecutor.Navigator {
         );
 
         holder.attach(inventory);
-        this.renderTargetSelector(holder, viewer, state);
-        this.openInventory(viewer, holder, inventory);
+        this.menuRenderer.renderTargetSelector(
+                holder,
+                state.targetSelectorConfig(),
+                state.renderer(),
+                state.actions(),
+                targets
+        );
+        this.sessions.openInventory(viewer, holder, inventory, this::refreshTick);
 
     }
 
@@ -138,19 +143,19 @@ public final class MenuManager implements MenuActionExecutor.Navigator {
             return;
         }
 
-        final int groupCount = historyGroups(
+        final List<List<HistoryEntry>> groups = MenuLayout.historyGroups(
                 target,
                 state.selectedTargetConfig().entryItem().failuresPerEntry()
-        ).size();
-        final List<Integer> contentSlots = contentSlots(
+        );
+        final List<Integer> contentSlots = MenuLayout.contentSlots(
                 state.selectedTargetConfig().allowedSlots(),
                 state.selectedTargetConfig().items()
         );
-        final int totalPages = pages(groupCount, contentSlots.size());
-        final int page = clampPage(requestedPage, totalPages);
+        final int totalPages = MenuLayout.pages(groups.size(), contentSlots.size());
+        final int page = MenuLayout.clampPage(requestedPage, totalPages);
         final Map<String, String> placeholders = state.renderer().menuPlaceholders(page, totalPages, target);
         final MenuHolder holder = new MenuHolder(
-                MenuHolder.Type.SELECTED_TARGET,
+                MenuType.SELECTED_TARGET,
                 page,
                 totalPages,
                 target.uniqueId()
@@ -162,8 +167,15 @@ public final class MenuManager implements MenuActionExecutor.Navigator {
         );
 
         holder.attach(inventory);
-        this.renderSelectedTarget(holder, viewer, target, state);
-        this.openInventory(viewer, holder, inventory);
+        this.menuRenderer.renderSelectedTarget(
+                holder,
+                state.selectedTargetConfig(),
+                state.renderer(),
+                state.actions(),
+                target,
+                groups
+        );
+        this.sessions.openInventory(viewer, holder, inventory, this::refreshTick);
 
     }
 
@@ -173,7 +185,7 @@ public final class MenuManager implements MenuActionExecutor.Navigator {
             final int page
     ) {
 
-        if (context.menuType() == MenuHolder.Type.TARGET_SELECTOR) {
+        if (context.menuType() == MenuType.TARGET_SELECTOR) {
             this.openTargetSelector(context.viewer(), page);
         } else if (context.target() != null) {
             this.openSelectedTarget(context.viewer(), context.target(), page);
@@ -185,8 +197,12 @@ public final class MenuManager implements MenuActionExecutor.Navigator {
             final @NotNull TrackedPlayer changedTarget
     ) {
 
-        for (final Player viewer : this.openViewers()) {
-            this.scheduleForViewer(viewer, () -> this.refresh(viewer, changedTarget));
+        for (final Player viewer : this.sessions.openViewers()) {
+            this.scheduler.scheduleEntity(
+                    viewer,
+                    () -> this.refreshViewer(viewer, changedTarget),
+                    TickSchedule.instant()
+            );
         }
 
     }
@@ -199,29 +215,13 @@ public final class MenuManager implements MenuActionExecutor.Navigator {
 
         this.apply(settings, targetSelectorConfig, selectedTargetConfig);
 
-        for (final Player viewer : this.openViewers()) {
-            this.scheduleForViewer(viewer, () -> this.refreshOpenMenu(viewer));
+        for (final Player viewer : this.sessions.openViewers()) {
+            this.scheduler.scheduleEntity(
+                    viewer,
+                    () -> this.refreshOpenMenu(viewer),
+                    TickSchedule.instant()
+            );
         }
-
-    }
-
-    private @NotNull List<Player> openViewers() {
-
-        final List<UUID> viewerIds;
-        synchronized (this.viewersLock) {
-            if (this.openMenus.isEmpty()) {
-                return List.of();
-            }
-            viewerIds = new ArrayList<>(this.openMenus.keySet());
-        }
-        final List<Player> viewers = new ArrayList<>(viewerIds.size());
-        for (final UUID viewerId : viewerIds) {
-            final Player viewer = Bukkit.getPlayer(viewerId);
-            if (viewer != null) {
-                viewers.add(viewer);
-            }
-        }
-        return viewers;
 
     }
 
@@ -230,110 +230,42 @@ public final class MenuManager implements MenuActionExecutor.Navigator {
             final @NotNull SelectedTargetConfiguration selectedTargetConfig
     ) {
 
-        contentSlots(targetSelectorConfig.allowedSlots(), targetSelectorConfig.items());
-        contentSlots(selectedTargetConfig.allowedSlots(), selectedTargetConfig.items());
+        MenuLayout.validate(targetSelectorConfig, selectedTargetConfig);
 
     }
 
     public @NotNull CompletableFuture<Void> closeAll() {
 
-        synchronized (this.viewersLock) {
-            this.stopping = true;
-            final long generation = ++this.closeGeneration;
-            for (final Player player : Bukkit.getOnlinePlayers()) {
-                final UUID playerId = player.getUniqueId();
-                if (!this.openMenus.containsKey(playerId)) {
-                    continue;
-                }
-                final MenuHolder expected = this.openMenus.get(playerId);
-                final CompletableFuture<Void> closed = this.pendingClose.computeIfAbsent(playerId, ignored -> new CompletableFuture<>());
-                try {
-                    this.scheduler.scheduleEntity(player, () -> {
-                        try {
-                            synchronized (this.viewersLock) {
-                                if (!this.stopping || this.closeGeneration != generation) {
-                                    return;
-                                }
-                                this.closingViewers.add(playerId);
-                                try {
-                                    if (InventoryViewCompat.getTopInventory(player).getHolder() == expected) {
-                                        player.closeInventory();
-                                    }
-                                    this.menuClosed(player, expected);
-                                } finally {
-                                    this.closingViewers.remove(playerId);
-                                }
-                                this.viewerClosed(playerId);
-                            }
-                        } catch (final RuntimeException exception) {
-                            closed.completeExceptionally(exception);
-                        }
-                    }, TickSchedule.instant());
-                } catch (final RuntimeException exception) {
-                    closed.completeExceptionally(exception);
-                }
-            }
-            final CompletableFuture<Void> result = CompletableFuture.allOf(this.pendingClose.values().toArray(CompletableFuture[]::new));
-            result.whenComplete((ignored, failure) -> {
-                if (failure != null) {
-                    synchronized (this.viewersLock) {
-                        this.pendingClose.clear();
-                        this.stopping = false;
-                    }
-                }
-            });
-            return result;
-        }
+        return this.sessions.closeAll();
+
+    }
+
+    public void closeImmediately() {
+
+        this.sessions.closeImmediately();
 
     }
 
     public void cancelClose() {
 
-        synchronized (this.viewersLock) {
-            this.pendingClose.clear();
-            this.stopping = false;
-            this.closeGeneration++;
-        }
+        this.sessions.cancelClose();
 
     }
 
-    public void menuClosed(final @NotNull Player viewer, final @NotNull MenuHolder holder) {
+    public void menuClosed(
+            final @NotNull Player viewer,
+            final @NotNull MenuHolder holder
+    ) {
 
-        synchronized (this.viewersLock) {
-            if (this.openMenus.remove(viewer.getUniqueId(), holder)) {
-                this.viewerClosed(viewer.getUniqueId());
-            }
-        }
-
-    }
-
-    public void viewerClosed(final @NotNull UUID playerId) {
-
-        synchronized (this.viewersLock) {
-            this.openMenus.remove(playerId);
-            if (this.closingViewers.contains(playerId)) {
-                return;
-            }
-            final CompletableFuture<Void> closed = this.pendingClose.remove(playerId);
-            if (closed != null) {
-                closed.complete(null);
-            }
-        }
+        this.sessions.menuClosed(viewer, holder);
 
     }
 
-    private void openInventory(final @NotNull Player viewer, final @NotNull MenuHolder holder, final @NotNull Inventory inventory) {
+    public void viewerClosed(
+            final @NotNull UUID playerId
+    ) {
 
-        synchronized (this.viewersLock) {
-            if (this.stopping) {
-                return;
-            }
-            viewer.openInventory(inventory);
-            if (InventoryViewCompat.getTopInventory(viewer) == inventory) {
-                this.openMenus.put(viewer.getUniqueId(), holder);
-                this.startRefresh(viewer, holder);
-            }
-        }
+        this.sessions.viewerClosed(playerId);
 
     }
 
@@ -343,238 +275,19 @@ public final class MenuManager implements MenuActionExecutor.Navigator {
             final @NotNull SelectedTargetConfiguration selectedTargetConfig
     ) {
 
-        validate(targetSelectorConfig, selectedTargetConfig);
+        MenuLayout.validate(targetSelectorConfig, selectedTargetConfig);
 
         this.state = new State(
                 settings,
                 targetSelectorConfig,
                 selectedTargetConfig,
-                new MenuTextRenderer(this.text, settings)
+                new MenuTextRenderer(this.text, settings),
+                this.actionExecutor.compileTable(targetSelectorConfig, selectedTargetConfig)
         );
 
     }
 
-    private void renderTargetSelector(
-            final @NotNull MenuHolder holder,
-            final @NotNull Player viewer,
-            final @NotNull State state
-    ) {
-
-        final List<TrackedPlayer> targets = this.targets(state);
-        final List<Integer> slots = contentSlots(
-                state.targetSelectorConfig().allowedSlots(),
-                state.targetSelectorConfig().items()
-        );
-        final int totalPages = pages(targets.size(), slots.size());
-        final int page = clampPage(holder.page(), totalPages);
-        final Map<String, String> menuPlaceholders = state.renderer().menuPlaceholders(page, totalPages, null);
-
-        holder.reset(page, totalPages);
-        this.renderStaticItems(
-                holder,
-                state.targetSelectorConfig().items(),
-                menuPlaceholders,
-                null,
-                state
-        );
-
-        final int offset = page * slots.size();
-        final int amount = Math.min(slots.size(), targets.size() - offset);
-
-        for (int index = 0; index < amount; index++) {
-            final int slot = slots.get(index);
-            final TrackedPlayer target = targets.get(offset + index);
-            final List<HistoryEntry> history = target.history();
-            holder.getInventory().setItem(
-                    slot,
-                    BukkitMenuItemRenderer.render(
-                            state.renderer().targetItem(state.targetSelectorConfig().targetItem(), target, history)
-                    )
-            );
-            holder.addTimeUpdate(() -> holder.getInventory().setItem(
-                    slot,
-                    BukkitMenuItemRenderer.render(
-                            state.renderer().targetItem(state.targetSelectorConfig().targetItem(), target, history)
-                    )
-            ));
-            this.bind(
-                    holder,
-                    slot,
-                    state.targetSelectorConfig().targetItem().leftClickActions(),
-                    state.targetSelectorConfig().targetItem().rightClickActions(),
-                    target,
-                    state.renderer().menuPlaceholders(page, totalPages, target)
-            );
-        }
-
-    }
-
-    private void renderSelectedTarget(
-            final @NotNull MenuHolder holder,
-            final @NotNull Player viewer,
-            final @NotNull TrackedPlayer target,
-            final @NotNull State state
-    ) {
-
-        final List<List<HistoryEntry>> groups = historyGroups(
-                target,
-                state.selectedTargetConfig().entryItem().failuresPerEntry()
-        );
-        final List<Integer> slots = contentSlots(
-                state.selectedTargetConfig().allowedSlots(),
-                state.selectedTargetConfig().items()
-        );
-        final int totalPages = pages(groups.size(), slots.size());
-        final int page = clampPage(holder.page(), totalPages);
-        final Map<String, String> menuPlaceholders = state.renderer().menuPlaceholders(page, totalPages, target);
-
-        holder.reset(page, totalPages);
-        this.renderStaticItems(
-                holder,
-                state.selectedTargetConfig().items(),
-                menuPlaceholders,
-                target,
-                state
-        );
-
-        final int offset = page * slots.size();
-        final int amount = Math.min(slots.size(), groups.size() - offset);
-
-        for (int index = 0; index < amount; index++) {
-            final int slot = slots.get(index);
-            final List<HistoryEntry> entries = groups.get(offset + index);
-            holder.getInventory().setItem(
-                    slot,
-                    BukkitMenuItemRenderer.render(
-                            state.renderer().historyGroupItem(
-                                    state.selectedTargetConfig().entryItem(),
-                                    target,
-                                    entries,
-                                    menuPlaceholders
-                            )
-                    )
-            );
-            holder.addTimeUpdate(() -> holder.getInventory().setItem(
-                    slot,
-                    BukkitMenuItemRenderer.render(
-                            state.renderer().historyGroupItem(
-                                    state.selectedTargetConfig().entryItem(),
-                                    target,
-                                    entries,
-                                    menuPlaceholders
-                            )
-                    )
-            ));
-            this.bind(
-                    holder,
-                    slot,
-                    state.selectedTargetConfig().entryItem().leftClickActions(),
-                    state.selectedTargetConfig().entryItem().rightClickActions(),
-                    target,
-                    menuPlaceholders
-            );
-        }
-
-    }
-
-    private void renderStaticItems(
-            final @NotNull MenuHolder holder,
-            final @NotNull Map<String, ItemConfiguration> items,
-            final @NotNull Map<String, String> placeholders,
-            final TrackedPlayer target,
-            final @NotNull State state
-    ) {
-
-        for (final ItemConfiguration item : items.values()) {
-            for (final int slot : item.slots()) {
-                holder.getInventory().setItem(
-                        slot,
-                        BukkitMenuItemRenderer.render(state.renderer().staticItem(item, placeholders))
-                );
-                this.bind(
-                        holder,
-                        slot,
-                        item.leftClickActions(),
-                        item.rightClickActions(),
-                        target,
-                        placeholders
-                );
-            }
-        }
-
-    }
-
-    private void bind(
-            final @NotNull MenuHolder holder,
-            final int slot,
-            final @NotNull List<String> leftClickActions,
-            final @NotNull List<String> rightClickActions,
-            final TrackedPlayer target,
-            final @NotNull Map<String, String> placeholders
-    ) {
-
-        holder.bind(slot, (viewer, clickType) -> {
-            if (!this.canView(viewer)) {
-                viewer.closeInventory();
-                return;
-            }
-            final List<String> actions = clickActions(
-                    clickType,
-                    leftClickActions,
-                    rightClickActions
-            );
-
-            if (actions.isEmpty()) {
-                return;
-            }
-
-            this.actionExecutor.execute(
-                    actions,
-                    new MenuActionExecutor.Context(
-                            viewer,
-                            target,
-                            holder.type(),
-                            holder.page(),
-                            holder.totalPages(),
-                            placeholders
-                    )
-            );
-        });
-
-    }
-
-    private @NotNull List<TrackedPlayer> targets(
-            final @NotNull State state
-    ) {
-
-        final List<TrackedPlayer> targets = new ArrayList<>();
-
-        for (final TrackedPlayer target : this.playerRegistry) {
-            if (!state.settings().includeEmptyHistory() && target.history().isEmpty()) {
-                continue;
-            }
-
-            targets.add(target);
-        }
-
-        Comparator<TrackedPlayer> comparator = switch (state.targetSelectorConfig().sortBy()) {
-            case LATEST_FAILURE -> Comparator.comparingLong(MenuManager::latestTimestamp);
-            case AVERAGE_PROBABILITY -> Comparator.comparingDouble(
-                    MenuTextRenderer::averageProbability
-            );
-            case NAME -> Comparator.comparing(TrackedPlayer::name, String.CASE_INSENSITIVE_ORDER);
-        };
-
-        if (state.targetSelectorConfig().descending()) {
-            comparator = comparator.reversed();
-        }
-
-        targets.sort(comparator.thenComparing(TrackedPlayer::name, String.CASE_INSENSITIVE_ORDER));
-        return targets;
-
-    }
-
-    private void refresh(
+    private void refreshViewer(
             final @NotNull Player viewer,
             final @NotNull TrackedPlayer changedTarget
     ) {
@@ -585,23 +298,45 @@ public final class MenuManager implements MenuActionExecutor.Navigator {
             return;
         }
 
-        final int configuredSize = holder.type() == MenuHolder.Type.TARGET_SELECTOR
+        final int configuredSize = holder.type() == MenuType.TARGET_SELECTOR
                 ? state.targetSelectorConfig().size() : state.selectedTargetConfig().size();
         if (holder.getInventory().getSize() != configuredSize) {
             this.refreshOpenMenu(viewer);
             return;
         }
 
-        if (holder.type() == MenuHolder.Type.TARGET_SELECTOR
+        if (holder.type() == MenuType.TARGET_SELECTOR
                 && state.targetSelectorConfig().targetItem().updateOnFailure()) {
-            this.renderTargetSelector(holder, viewer, state);
+            final List<TrackedPlayer> targets = MenuLayout.targets(
+                    this.playerRegistry,
+                    state.settings().includeEmptyHistory(),
+                    state.targetSelectorConfig()
+            );
+            this.menuRenderer.renderTargetSelector(
+                    holder,
+                    state.targetSelectorConfig(),
+                    state.renderer(),
+                    state.actions(),
+                    targets
+            );
             return;
         }
 
-        if (holder.type() == MenuHolder.Type.SELECTED_TARGET
+        if (holder.type() == MenuType.SELECTED_TARGET
                 && changedTarget.uniqueId().equals(holder.targetId())
                 && state.selectedTargetConfig().entryItem().updateOnFailure()) {
-            this.renderSelectedTarget(holder, viewer, changedTarget, state);
+            final List<List<HistoryEntry>> groups = MenuLayout.historyGroups(
+                    changedTarget,
+                    state.selectedTargetConfig().entryItem().failuresPerEntry()
+            );
+            this.menuRenderer.renderSelectedTarget(
+                    holder,
+                    state.selectedTargetConfig(),
+                    state.renderer(),
+                    state.actions(),
+                    changedTarget,
+                    groups
+            );
         }
 
     }
@@ -621,7 +356,7 @@ public final class MenuManager implements MenuActionExecutor.Navigator {
             return;
         }
 
-        if (holder.type() == MenuHolder.Type.TARGET_SELECTOR) {
+        if (holder.type() == MenuType.TARGET_SELECTOR) {
             this.openTargetSelector(viewer, holder.page());
             return;
         }
@@ -637,45 +372,35 @@ public final class MenuManager implements MenuActionExecutor.Navigator {
 
     }
 
-    private void startRefresh(final @NotNull Player viewer, final @NotNull MenuHolder holder) {
-
-        holder.refreshTask(this.scheduler.scheduleEntity(viewer, task -> {
-            if (InventoryViewCompat.getTopInventory(viewer).getHolder() != holder) {
-                task.cancel();
-                return;
-            }
-            final State state = this.state;
-            if (!this.canView(viewer, state)) {
-                viewer.closeInventory();
-                task.cancel();
-                return;
-            }
-            final int configuredSize = holder.type() == MenuHolder.Type.TARGET_SELECTOR
-                    ? state.targetSelectorConfig().size() : state.selectedTargetConfig().size();
-            if (holder.getInventory().getSize() != configuredSize) {
-                this.refreshOpenMenu(viewer);
-                task.cancel();
-                return;
-            }
-            if (holder.type() == MenuHolder.Type.SELECTED_TARGET) {
-                final TrackedPlayer target = this.playerRegistry.get(holder.targetId());
-                if (target == null) {
-                    this.openTargetSelector(viewer, 0);
-                    task.cancel();
-                    return;
-                }
-            }
-            holder.updateTime();
-        }, TickSchedule.repeating(20, 20)));
-
-    }
-
-    private void scheduleForViewer(
+    private boolean refreshTick(
             final @NotNull Player viewer,
-            final @NotNull Runnable action
+            final @NotNull MenuHolder holder
     ) {
 
-        this.scheduler.scheduleEntity(viewer, action, TickSchedule.instant());
+        final State state = this.state;
+
+        if (!this.canView(viewer, state)) {
+            viewer.closeInventory();
+            return false;
+        }
+
+        final int configuredSize = holder.type() == MenuType.TARGET_SELECTOR
+                ? state.targetSelectorConfig().size() : state.selectedTargetConfig().size();
+        if (holder.getInventory().getSize() != configuredSize) {
+            this.refreshOpenMenu(viewer);
+            return false;
+        }
+
+        if (holder.type() == MenuType.SELECTED_TARGET) {
+            final UUID targetId = holder.targetId();
+            final TrackedPlayer target = targetId == null ? null : this.playerRegistry.get(targetId);
+            if (target == null) {
+                this.openTargetSelector(viewer, 0);
+                return false;
+            }
+        }
+
+        return true;
 
     }
 
@@ -689,98 +414,6 @@ public final class MenuManager implements MenuActionExecutor.Navigator {
 
     }
 
-    private static @NotNull List<List<HistoryEntry>> historyGroups(
-            final @NotNull TrackedPlayer target,
-            final int groupSize
-    ) {
-
-        final List<HistoryEntry> history = target.history();
-        final List<HistoryEntry> newestFirst = new ArrayList<>(history.size());
-
-        for (int index = history.size() - 1; index >= 0; index--) {
-            newestFirst.add(history.get(index));
-        }
-
-        final List<List<HistoryEntry>> groups = new ArrayList<>();
-
-        for (int start = 0; start < newestFirst.size(); start += groupSize) {
-            groups.add(List.copyOf(
-                    newestFirst.subList(start, Math.min(newestFirst.size(), start + groupSize))
-            ));
-        }
-
-        return groups;
-
-    }
-
-    private static @NotNull List<Integer> contentSlots(
-            final @NotNull List<Integer> configuredSlots,
-            final @NotNull Map<String, ItemConfiguration> items
-    ) {
-
-        final Set<Integer> reserved = new HashSet<>();
-
-        for (final ItemConfiguration item : items.values()) {
-            reserved.addAll(item.slots());
-        }
-
-        final List<Integer> result = configuredSlots.stream()
-                .filter(slot -> !reserved.contains(slot))
-                .toList();
-
-        if (result.isEmpty()) {
-            throw new IllegalArgumentException("Menu has no content slots after static item slots are reserved");
-        }
-
-        return result;
-
-    }
-
-    private static @NotNull List<String> clickActions(
-            final @NotNull ClickType clickType,
-            final @NotNull List<String> leftClickActions,
-            final @NotNull List<String> rightClickActions
-    ) {
-
-        if (clickType.isLeftClick()) {
-            return leftClickActions;
-        }
-
-        if (clickType.isRightClick()) {
-            return rightClickActions;
-        }
-
-        return List.of();
-
-    }
-
-    private static int pages(
-            final int itemCount,
-            final int pageSize
-    ) {
-
-        return Math.max(1, (itemCount + pageSize - 1) / pageSize);
-
-    }
-
-    private static int clampPage(
-            final int page,
-            final int totalPages
-    ) {
-
-        return Math.max(0, Math.min(page, totalPages - 1));
-
-    }
-
-    private static long latestTimestamp(
-            final @NotNull TrackedPlayer target
-    ) {
-
-        final List<HistoryEntry> history = target.history();
-        return history.isEmpty() ? 0L : history.get(history.size() - 1).timestamp();
-
-    }
-
     /**
      * Keeps one immutable configuration set visible to concurrent entity scheduler tasks.
      */
@@ -788,7 +421,8 @@ public final class MenuManager implements MenuActionExecutor.Navigator {
             @NotNull AddonConfig settings,
             @NotNull TargetSelectorConfiguration targetSelectorConfig,
             @NotNull SelectedTargetConfiguration selectedTargetConfig,
-            @NotNull MenuTextRenderer renderer
+            @NotNull MenuTextRenderer renderer,
+            @NotNull MenuActionTable<Player> actions
     ) {
     }
 

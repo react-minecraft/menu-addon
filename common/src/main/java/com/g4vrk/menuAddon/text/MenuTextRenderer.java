@@ -13,6 +13,7 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.TextColor;
 import net.kyori.adventure.text.format.TextDecoration;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.math.RoundingMode;
 import java.text.DecimalFormat;
@@ -31,6 +32,9 @@ public final class MenuTextRenderer {
 
     private static final String FORMATTED_FAILURES = "{target.failures:formatted}";
     private static final DecimalFormatSymbols US_SYMBOLS = DecimalFormatSymbols.getInstance(Locale.US);
+    private static final int MAX_CACHED_FORMATS = 32;
+    private static final ThreadLocal<Map<String, DecimalFormat>> DECIMAL_FORMATS =
+            ThreadLocal.withInitial(HashMap::new);
 
     private final TextFormatter text;
     private final AddonConfig settings;
@@ -88,6 +92,16 @@ public final class MenuTextRenderer {
 
     }
 
+    public @NotNull List<Component> targetLore(
+            final @NotNull TargetSelectorConfiguration.TargetItem config,
+            final @NotNull TrackedPlayer target,
+            final @NotNull List<HistoryEntry> history
+    ) {
+
+        return this.targetLore(config, target, history, this.targetPlaceholders(target, history));
+
+    }
+
     public @NotNull MenuItemData historyGroupItem(
             final @NotNull SelectedTargetConfiguration.EntryItem config,
             final @NotNull TrackedPlayer target,
@@ -99,6 +113,28 @@ public final class MenuTextRenderer {
         final Map<String, String> placeholders = new HashMap<>(menuPlaceholders);
         this.putGroupStatistic(placeholders, statistic);
 
+        return new MenuItemData(
+                this.historyGroupMaterial(config, statistic),
+                null,
+                this.component(config.name(), placeholders),
+                this.historyGroupLore(config, target, entries, placeholders),
+                null
+        );
+
+    }
+
+    public @NotNull List<Component> historyGroupLore(
+            final @NotNull SelectedTargetConfiguration.EntryItem config,
+            final @NotNull TrackedPlayer target,
+            final @NotNull List<HistoryEntry> entries,
+            final @NotNull Map<String, String> menuPlaceholders
+    ) {
+
+        final Map<String, String> placeholders = new HashMap<>(menuPlaceholders);
+        if (!placeholders.containsKey("statistic.average-probability")) {
+            this.putGroupStatistic(placeholders, GroupStatistic.calculate(entries));
+        }
+
         final List<Component> lore = new ArrayList<>();
         lore.addAll(this.components(config.loreHeader(), placeholders));
 
@@ -109,20 +145,14 @@ public final class MenuTextRenderer {
         }
 
         lore.addAll(this.components(config.loreFooter(), placeholders));
-        return new MenuItemData(
-                this.historyGroupMaterial(config, statistic),
-                null,
-                this.component(config.name(), placeholders),
-                lore,
-                null
-        );
+        return lore;
 
     }
 
     public @NotNull Map<String, String> menuPlaceholders(
             final int page,
             final int totalPages,
-            final TrackedPlayer target
+            final @Nullable TrackedPlayer target
     ) {
 
         final Map<String, String> placeholders = new HashMap<>();
@@ -159,13 +189,54 @@ public final class MenuTextRenderer {
             final @NotNull Map<String, String> placeholders
     ) {
 
-        String result = template;
+        return replacePlaceholders(template, placeholders);
 
-        for (final Map.Entry<String, String> entry : placeholders.entrySet()) {
-            result = result.replace('{' + entry.getKey() + '}', entry.getValue());
+    }
+
+    public static @NotNull String replacePlaceholders(
+            final @NotNull String template,
+            final @NotNull Map<String, String> placeholders
+    ) {
+
+        if (template.isEmpty() || placeholders.isEmpty()) {
+            return template;
         }
 
-        return result;
+        int open = template.indexOf('{');
+
+        if (open < 0) {
+            return template;
+        }
+
+        final StringBuilder builder = new StringBuilder(template.length());
+        int cursor = 0;
+
+        while (open >= 0) {
+            final int close = template.indexOf('}', open + 1);
+
+            if (close < 0) {
+                break;
+            }
+
+            final String key = template.substring(open + 1, close);
+            final String value = placeholders.get(key);
+
+            if (value != null) {
+                builder.append(template, cursor, open);
+                builder.append(value);
+                cursor = close + 1;
+                open = template.indexOf('{', cursor);
+            } else {
+                open = template.indexOf('{', open + 1);
+            }
+        }
+
+        if (cursor == 0) {
+            return template;
+        }
+
+        builder.append(template, cursor, template.length());
+        return builder.toString();
 
     }
 
@@ -361,12 +432,26 @@ public final class MenuTextRenderer {
             final @NotNull String pattern
     ) {
 
+        final Map<String, DecimalFormat> formats = DECIMAL_FORMATS.get();
+
+        if (formats.size() >= MAX_CACHED_FORMATS && !formats.containsKey(pattern)) {
+            formats.clear();
+        }
+
+        return formats.computeIfAbsent(pattern, MenuTextRenderer::createDecimalFormat).format(value);
+
+    }
+
+    private static @NotNull DecimalFormat createDecimalFormat(
+            final @NotNull String pattern
+    ) {
+
         final DecimalFormat format = new DecimalFormat(
                 pattern,
                 US_SYMBOLS
         );
         format.setRoundingMode(RoundingMode.HALF_UP);
-        return format.format(value);
+        return format;
 
     }
 

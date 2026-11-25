@@ -1,0 +1,54 @@
+settings:
+
+  # Changing the literal or permission requires /react reboot addons.
+  argument-literal: menu
+
+  permission: react.menu.view
+
+  # Show online players without analysis entries.
+  include-empty-history: false
+
+  format:
+
+    probability: '0.00000'
+
+    elapsed-time:
+
+      now: 'just now'
+      never: 'never'
+      separator: ' '
+      max-parts: 2
+
+      days: '{value}d'
+      hours: '{value}h'
+      minutes: '{value}m'
+      seconds: '{value}s'
+
+open:
+
+  on-console:
+    - "[msg] <b><gradient:#14B8A6:#2DD4BF>⚡ ʀᴇᴀᴄᴛ-ᴍᴇɴᴜ</gradient></b> <gray>»</gray> <white>Only players can use this command."
+    - "[sound] block.note_block.bass;1.0;0.8"
+
+  on-denied:
+    - "[msg] <b><gradient:#14B8A6:#2DD4BF>⚡ ʀᴇᴀᴄᴛ-ᴍᴇɴᴜ</gradient></b> <gray>»</gray> <white>Missing permission <red>{permission}</red>."
+    - "[sound] block.note_block.bass;1.0;0.8"
+
+reload:
+
+  on-start:
+    - "[msg] <b><gradient:#14B8A6:#2DD4BF>⚡ ʀᴇᴀᴄᴛ-ᴍᴇɴᴜ</gradient></b> <gray>»</gray> <white>Reloading the addon..."
+    - "[bar] <b><gradient:#14B8A6:#2DD4BF>⚡ ʀᴇᴀᴄᴛ-ᴍᴇɴᴜ</gradient></b> <gray>»</gray> <white>Reloading..."
+    - "[sound] block.note_block.pling;1.0;1.0"
+
+  on-finish:
+    - "[msg] <b><gradient:#14B8A6:#2DD4BF>⚡ ʀᴇᴀᴄᴛ-ᴍᴇɴᴜ</gradient></b> <gray>»</gray> <white>Addon reloaded!"
+    - "[bar] <b><gradient:#14B8A6:#2DD4BF>⚡ ʀᴇᴀᴄᴛ-ᴍᴇɴᴜ</gradient></b> <gray>»</gray> <white>Addon reloaded!"
+    - "[sound] entity.player.levelup;1.0;1.0"
+
+  on-failure:
+    - "[msg] <b><gradient:#14B8A6:#2DD4BF>⚡ ʀᴇᴀᴄᴛ-ᴍᴇɴᴜ</gradient></b> <gray>»</gray> <white>Reload failed. Check the console for details."
+    - "[sound] block.note_block.bass;1.0;0.8"
+
+# Do not change the configuration version.
+config-version: 1

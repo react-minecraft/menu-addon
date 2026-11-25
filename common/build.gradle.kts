@@ -11,6 +11,7 @@ dependencies {
 
     compileOnly(libs.react.api)
     compileOnly(libs.react.common)
+    compileOnly(libs.actions)
     compileOnly(libs.configurate.yaml)
     compileOnly(libs.adventure.api)
 

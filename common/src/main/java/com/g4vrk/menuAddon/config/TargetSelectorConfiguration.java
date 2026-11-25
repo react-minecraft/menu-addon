@@ -12,7 +12,6 @@ public final class TargetSelectorConfiguration {
 
     private final String title;
     private final int size;
-    private final boolean onlyOnline;
     private final SortBy sortBy;
     private final boolean descending;
     private final List<Integer> allowedSlots;
@@ -25,7 +24,6 @@ public final class TargetSelectorConfiguration {
 
         this.title = node.node("title").getString("&8Нарушители");
         this.size = ConfigurationUtil.inventorySize(node.node("size"));
-        this.onlyOnline = node.node("listing", "only-online").getBoolean(true);
         this.sortBy = SortBy.read(node.node("listing", "sort", "by").getString("latest-failure"));
         this.descending = node.node("listing", "sort", "descending").getBoolean(true);
         this.allowedSlots = ConfigurationUtil.slots(
@@ -46,12 +44,6 @@ public final class TargetSelectorConfiguration {
     public int size() {
 
         return this.size;
-
-    }
-
-    public boolean onlyOnline() {
-
-        return this.onlyOnline;
 
     }
 

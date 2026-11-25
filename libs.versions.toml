@@ -1,6 +1,6 @@
 [versions]
 
-paper-api = "1.19.4-R0.1-SNAPSHOT"
+paper-api = "1.16.5-R0.1-SNAPSHOT"
 minecraft = "1.19.4"
 minestom = "2026.10.07-26.2"
 sponge-api = "17.0.0"
@@ -30,7 +30,7 @@ run-task = "3.0.2"
 [libraries]
 xseries = { module = "com.github.cryptomorin:XSeries", version = "14.0.0" }
 
-paper-api = { module = "io.papermc.paper:paper-api", version.ref = "paper-api" }
+paper-api = { module = "com.destroystokyo.paper:paper-api", version.ref = "paper-api" }
 
 react-api = { module = "com.github.react-minecraft.plugin:react-api", version.ref = "react" }
 react-common = { module = "com.github.react-minecraft.plugin:react-common", version.ref = "react" }

@@ -6,6 +6,10 @@ import com.g4vrk.menuAddon.config.TargetSelectorConfiguration;
 import com.g4vrk.menuAddon.fabric.action.FabricMenuActionExecutor;
 import com.g4vrk.menuAddon.fabric.item.FabricMenuItemRenderer;
 import com.g4vrk.menuAddon.fabric.session.FabricMenuSessionManager;
+import com.g4vrk.menuAddon.menu.MenuLayout;
+import com.g4vrk.menuAddon.menu.MenuType;
+import com.g4vrk.menuAddon.menu.action.MenuActionCompiler;
+import com.g4vrk.menuAddon.menu.action.MenuActionTable;
 import com.g4vrk.menuAddon.menu.render.MenuItemData;
 import com.g4vrk.menuAddon.text.MenuTextRenderer;
 import com.g4vrk.react.api.event.EventPriority;
@@ -15,15 +19,14 @@ import com.g4vrk.react.api.extension.environment.AddonEnvironment;
 import com.g4vrk.react.api.player.HistoryEntry;
 import com.g4vrk.react.api.player.TrackedPlayer;
 import com.g4vrk.schedula.task.TickSchedule;
+import com.g4vrk.schedula.task.scheduler.TaskScheduler;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.SimpleContainer;
+import net.minecraft.world.item.ItemStack;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
@@ -34,12 +37,12 @@ import java.util.function.Supplier;
 public final class FabricMenuView {
 
     private final AddonEnvironment environment;
+    private final TaskScheduler<ServerPlayer> scheduler;
     private final FabricMenuSessionManager sessions;
     private final FabricMenuActionExecutor actions;
-    private boolean includeEmptyHistory;
-    private TargetSelectorConfiguration selector;
-    private SelectedTargetConfiguration selected;
-    private MenuTextRenderer renderer;
+    private final MenuActionCompiler<Void> actionCompiler;
+
+    private volatile State state;
 
     public FabricMenuView(
             final @NotNull AddonEnvironment environment,
@@ -47,10 +50,10 @@ public final class FabricMenuView {
     ) {
 
         this.environment = environment;
+        this.scheduler = environment.scheduler().mapEntity(environment.platform()::adaptPlayer);
         this.sessions = new FabricMenuSessionManager(environment, permission);
-        this.actions = new FabricMenuActionExecutor(
-                environment, () -> this.renderer, this::openPlayers, this::openHistory
-        );
+        this.actions = new FabricMenuActionExecutor(environment, this::openPlayers, this::openHistory);
+        this.actionCompiler = new MenuActionCompiler<>(environment.actions(), null, null);
 
     }
 
@@ -61,10 +64,9 @@ public final class FabricMenuView {
             final @NotNull MenuTextRenderer renderer
     ) {
 
-        this.includeEmptyHistory = includeEmptyHistory;
-        this.selector = selector;
-        this.selected = selected;
-        this.renderer = renderer;
+        MenuLayout.validate(selector, selected);
+        final MenuActionTable<Void> compiledActions = this.actionCompiler.compileTable(selector, selected);
+        this.state = new State(includeEmptyHistory, selector, selected, renderer, compiledActions);
 
     }
 
@@ -74,49 +76,40 @@ public final class FabricMenuView {
 
     }
 
-    public void openPlayers(final @NotNull ServerPlayer viewer, final int requestedPage) {
+    public void openPlayers(
+            final @NotNull ServerPlayer viewer,
+            final int requestedPage
+    ) {
 
-        final List<TrackedPlayer> tracked = new ArrayList<>();
-        this.environment.players().forEach(target -> {
-            if (this.includeEmptyHistory || !target.history().isEmpty()) {
-                tracked.add(target);
-            }
-        });
-        final Comparator<TrackedPlayer> ordering = switch (this.selector.sortBy()) {
-            case NAME -> Comparator.comparing(TrackedPlayer::name, String.CASE_INSENSITIVE_ORDER);
-            case AVERAGE_PROBABILITY -> Comparator.comparingDouble(MenuTextRenderer::averageProbability);
-            case LATEST_FAILURE -> Comparator.comparingLong(FabricMenuView::latestFailure);
-        };
-        tracked.sort(this.selector.descending() ? ordering.reversed() : ordering);
-        final List<Integer> slots = contentSlots(this.selector.allowedSlots(), this.selector.items());
-        final int pages = pages(tracked.size(), slots.size());
-        final int page = Math.max(0, Math.min(requestedPage, pages - 1));
-        final SimpleContainer container = new SimpleContainer(this.selector.size());
-        renderStatic(container, this.selector.items(), this.renderer.menuPlaceholders(page, pages, null));
-        for (int index = page * slots.size(); index < Math.min((page + 1) * slots.size(), tracked.size()); index++) {
-            final TrackedPlayer target = tracked.get(index);
-            container.setItem(slots.get(index - page * slots.size()), FabricMenuItemRenderer.item(this.renderer.targetItem(
-                    this.selector.targetItem(), target, target.history()
-            )));
-        }
-        final Component title = FabricMenuItemRenderer.toMinecraft(this.renderer.title(
-                this.selector.title(), this.renderer.menuPlaceholders(page, pages, null)
+        final State state = this.state;
+        final List<TrackedPlayer> tracked = MenuLayout.targets(
+                this.environment.players(),
+                state.includeEmptyHistory(),
+                state.selector()
+        );
+        final List<Integer> slots = MenuLayout.contentSlots(
+                state.selector().allowedSlots(),
+                state.selector().items()
+        );
+        final int pages = MenuLayout.pages(tracked.size(), slots.size());
+        final int page = MenuLayout.clampPage(requestedPage, pages);
+        final SimpleContainer container = new SimpleContainer(state.selector().size());
+        populatePlayers(container, state, tracked, slots, page, pages);
+        final Component title = FabricMenuItemRenderer.toMinecraft(state.renderer().title(
+                state.selector().title(),
+                state.renderer().menuPlaceholders(page, pages, null)
         ));
-        this.sessions.open(viewer, title, container, page, tracked, null, (slot, leftClick) -> {
-            final int contentIndex = slots.indexOf(slot);
-            if (contentIndex >= 0) {
-                final int targetIndex = page * slots.size() + contentIndex;
-                if (targetIndex < tracked.size()) {
-                    final TrackedPlayer target = tracked.get(targetIndex);
-                    this.actions.execute(viewer, leftClick
-                                    ? this.selector.targetItem().leftClickActions()
-                                    : this.selector.targetItem().rightClickActions(),
-                            this.renderer.menuPlaceholders(0, 1, target), target, 0);
-                }
-            } else {
-                clickConfiguredItem(viewer, slot, page, pages, null, leftClick);
-            }
-        });
+        this.sessions.open(
+                viewer,
+                title,
+                container,
+                MenuType.TARGET_SELECTOR,
+                page,
+                pages,
+                tracked,
+                null,
+                (session, slot, leftClick) -> handleClick(viewer, session, slot, leftClick)
+        );
 
     }
 
@@ -126,42 +119,164 @@ public final class FabricMenuView {
             final int requestedPage
     ) {
 
-        final List<List<HistoryEntry>> groups = historyGroups(target, this.selected.entryItem().failuresPerEntry());
-        final List<Integer> slots = contentSlots(this.selected.allowedSlots(), this.selected.items());
-        final int pages = pages(groups.size(), slots.size());
-        final int page = Math.max(0, Math.min(requestedPage, pages - 1));
-        final SimpleContainer container = new SimpleContainer(this.selected.size());
-        renderStatic(container, this.selected.items(), this.renderer.menuPlaceholders(page, pages, target));
-        for (int index = page * slots.size(); index < Math.min((page + 1) * slots.size(), groups.size()); index++) {
-            container.setItem(slots.get(index - page * slots.size()), FabricMenuItemRenderer.item(this.renderer.historyGroupItem(
-                    this.selected.entryItem(), target, groups.get(index), this.renderer.menuPlaceholders(page, pages, target)
-            )));
-        }
-        final Component title = FabricMenuItemRenderer.toMinecraft(this.renderer.title(
-                this.selected.title(), this.renderer.menuPlaceholders(page, pages, target)
+        final State state = this.state;
+        final List<List<HistoryEntry>> groups = MenuLayout.historyGroups(
+                target,
+                state.selected().entryItem().failuresPerEntry()
+        );
+        final List<Integer> slots = MenuLayout.contentSlots(
+                state.selected().allowedSlots(),
+                state.selected().items()
+        );
+        final int pages = MenuLayout.pages(groups.size(), slots.size());
+        final int page = MenuLayout.clampPage(requestedPage, pages);
+        final SimpleContainer container = new SimpleContainer(state.selected().size());
+        populateHistory(container, state, target, groups, slots, page, pages);
+        final Component title = FabricMenuItemRenderer.toMinecraft(state.renderer().title(
+                state.selected().title(),
+                state.renderer().menuPlaceholders(page, pages, target)
         ));
-        this.sessions.open(viewer, title, container, page, List.of(), target, (slot, leftClick) -> {
-            final List<Integer> contentSlots = contentSlots(this.selected.allowedSlots(), this.selected.items());
-            if (contentSlots.contains(slot)) {
-                this.actions.execute(viewer, leftClick
-                                ? this.selected.entryItem().leftClickActions()
-                                : this.selected.entryItem().rightClickActions(),
-                        this.renderer.menuPlaceholders(page, pages, target), target, page);
-            } else {
-                clickConfiguredItem(viewer, slot, page, pages, target, leftClick);
-            }
-        });
+        this.sessions.open(
+                viewer,
+                title,
+                container,
+                MenuType.SELECTED_TARGET,
+                page,
+                pages,
+                List.of(),
+                target,
+                (session, slot, leftClick) -> handleClick(viewer, session, slot, leftClick)
+        );
 
     }
 
-    private void renderStatic(
+    private void handleClick(
+            final @NotNull ServerPlayer viewer,
+            final @NotNull FabricMenuSessionManager.Session session,
+            final int slot,
+            final boolean leftClick
+    ) {
+
+        final State state = this.state;
+        if (session.menuType() == MenuType.TARGET_SELECTOR) {
+            final List<Integer> slots = MenuLayout.contentSlots(
+                    state.selector().allowedSlots(),
+                    state.selector().items()
+            );
+            final int contentIndex = slots.indexOf(slot);
+            if (contentIndex >= 0) {
+                final int targetIndex = session.page() * slots.size() + contentIndex;
+                if (targetIndex < session.players().size()) {
+                    final TrackedPlayer target = session.players().get(targetIndex);
+                    final List<String> rawActions = leftClick
+                            ? state.selector().targetItem().leftClickActions()
+                            : state.selector().targetItem().rightClickActions();
+                    this.actions.execute(
+                            viewer,
+                            state.actions().resolve(rawActions),
+                            state.renderer().menuPlaceholders(session.page(), session.totalPages(), target),
+                            target,
+                            MenuType.TARGET_SELECTOR
+                    );
+                }
+            } else {
+                clickConfiguredItem(viewer, state, slot, session.page(), session.totalPages(), null, leftClick);
+            }
+            return;
+        }
+
+        final List<Integer> slots = MenuLayout.contentSlots(
+                state.selected().allowedSlots(),
+                state.selected().items()
+        );
+        final TrackedPlayer target = session.historyTarget();
+        if (slots.contains(slot)) {
+            final List<String> rawActions = leftClick
+                    ? state.selected().entryItem().leftClickActions()
+                    : state.selected().entryItem().rightClickActions();
+            this.actions.execute(
+                    viewer,
+                    state.actions().resolve(rawActions),
+                    state.renderer().menuPlaceholders(session.page(), session.totalPages(), target),
+                    target,
+                    MenuType.SELECTED_TARGET
+            );
+        } else {
+            clickConfiguredItem(viewer, state, slot, session.page(), session.totalPages(), target, leftClick);
+        }
+
+    }
+
+    private static void populatePlayers(
             final @NotNull SimpleContainer container,
+            final @NotNull State state,
+            final @NotNull List<TrackedPlayer> tracked,
+            final @NotNull List<Integer> slots,
+            final int page,
+            final int pages
+    ) {
+
+        renderStatic(
+                container,
+                state.renderer(),
+                state.selector().items(),
+                state.renderer().menuPlaceholders(page, pages, null)
+        );
+        final int offset = page * slots.size();
+        for (int index = 0; index < slots.size(); index++) {
+            final int slot = slots.get(index);
+            final int targetIndex = offset + index;
+            if (targetIndex < tracked.size()) {
+                final TrackedPlayer target = tracked.get(targetIndex);
+                container.setItem(slot, FabricMenuItemRenderer.item(
+                        state.renderer().targetItem(state.selector().targetItem(), target, target.history())
+                ));
+            } else {
+                container.setItem(slot, ItemStack.EMPTY);
+            }
+        }
+
+    }
+
+    private static void populateHistory(
+            final @NotNull SimpleContainer container,
+            final @NotNull State state,
+            final @NotNull TrackedPlayer target,
+            final @NotNull List<List<HistoryEntry>> groups,
+            final @NotNull List<Integer> slots,
+            final int page,
+            final int pages
+    ) {
+
+        final Map<String, String> placeholders = state.renderer().menuPlaceholders(page, pages, target);
+        renderStatic(container, state.renderer(), state.selected().items(), placeholders);
+        final int offset = page * slots.size();
+        for (int index = 0; index < slots.size(); index++) {
+            final int slot = slots.get(index);
+            final int groupIndex = offset + index;
+            if (groupIndex < groups.size()) {
+                container.setItem(slot, FabricMenuItemRenderer.item(state.renderer().historyGroupItem(
+                        state.selected().entryItem(),
+                        target,
+                        groups.get(groupIndex),
+                        placeholders
+                )));
+            } else {
+                container.setItem(slot, ItemStack.EMPTY);
+            }
+        }
+
+    }
+
+    private static void renderStatic(
+            final @NotNull SimpleContainer container,
+            final @NotNull MenuTextRenderer renderer,
             final @NotNull Map<String, ItemConfiguration> items,
             final @NotNull Map<String, String> placeholders
     ) {
 
         for (final ItemConfiguration configured : items.values()) {
-            final MenuItemData rendered = this.renderer.staticItem(configured, placeholders);
+            final MenuItemData rendered = renderer.staticItem(configured, placeholders);
             for (final int slot : configured.slots()) {
                 container.setItem(slot, FabricMenuItemRenderer.item(rendered));
             }
@@ -169,47 +284,9 @@ public final class FabricMenuView {
 
     }
 
-    private static @NotNull List<Integer> contentSlots(
-            final @NotNull List<Integer> configured,
-            final @NotNull Map<String, ItemConfiguration> items
-    ) {
-
-        final List<Integer> result = new ArrayList<>(configured);
-        for (final ItemConfiguration item : items.values()) {
-            result.removeAll(item.slots());
-        }
-        if (result.isEmpty()) {
-            throw new IllegalArgumentException("Menu has no content slots after static items are reserved");
-        }
-        return List.copyOf(result);
-
-    }
-
-    private static int pages(final int content, final int capacity) {
-
-        return Math.max(1, (content + capacity - 1) / capacity);
-
-    }
-
-    private static @NotNull List<List<HistoryEntry>> historyGroups(
-            final @NotNull TrackedPlayer target,
-            final int groupSize
-    ) {
-
-        final List<HistoryEntry> history = target.history();
-        final List<List<HistoryEntry>> groups = new ArrayList<>();
-        for (int end = history.size(); end > 0; end -= groupSize) {
-            final int start = Math.max(0, end - groupSize);
-            final List<HistoryEntry> group = new ArrayList<>(history.subList(start, end));
-            Collections.reverse(group);
-            groups.add(List.copyOf(group));
-        }
-        return groups;
-
-    }
-
     private void clickConfiguredItem(
             final @NotNull ServerPlayer viewer,
+            final @NotNull State state,
             final int slot,
             final int page,
             final int pages,
@@ -217,31 +294,30 @@ public final class FabricMenuView {
             final boolean leftClick
     ) {
 
-        final Map<String, ItemConfiguration> items = target == null ? this.selector.items() : this.selected.items();
-        final Map<String, String> placeholders = this.renderer.menuPlaceholders(page, pages, target);
+        final MenuType menuType = target == null ? MenuType.TARGET_SELECTOR : MenuType.SELECTED_TARGET;
+        final Map<String, ItemConfiguration> items = menuType == MenuType.TARGET_SELECTOR
+                ? state.selector().items() : state.selected().items();
+        final Map<String, String> placeholders = state.renderer().menuPlaceholders(page, pages, target);
+
         for (final ItemConfiguration item : items.values()) {
             if (!item.slots().contains(slot)) {
                 continue;
             }
-            this.actions.execute(viewer, leftClick ? item.leftClickActions() : item.rightClickActions(),
-                    placeholders, target, page);
+            final List<String> rawActions = leftClick ? item.leftClickActions() : item.rightClickActions();
+            this.actions.execute(viewer, state.actions().resolve(rawActions), placeholders, target, menuType);
         }
-
-    }
-
-    private static long latestFailure(final @NotNull TrackedPlayer player) {
-
-        final List<HistoryEntry> entries = player.history();
-        return entries.isEmpty() ? Long.MIN_VALUE : entries.get(entries.size() - 1).timestamp();
 
     }
 
     public void refreshSessions() {
 
         for (final FabricMenuSessionManager.Session session : this.sessions.snapshot()) {
-            if (session.historyTarget() == null) {
+            if (!this.sessions.isCurrent(session)) {
+                continue;
+            }
+            if (session.menuType() == MenuType.TARGET_SELECTOR) {
                 openPlayers(session.player(), session.page());
-            } else {
+            } else if (session.historyTarget() != null) {
                 openHistory(session.player(), session.historyTarget(), session.page());
             }
         }
@@ -249,25 +325,110 @@ public final class FabricMenuView {
     }
 
     @Subscribe(priority = EventPriority.MONITOR)
-    public void onInferenceResult(final @NotNull InferenceResultEvent event) {
+    public void onInferenceResult(
+            final @NotNull InferenceResultEvent event
+    ) {
 
         final TrackedPlayer changed = event.check().player();
-        for (final FabricMenuSessionManager.Session session : this.sessions.snapshot()) {
-            this.environment.scheduler().<ServerPlayer>mapEntity(
-                    this.environment.platform()::adaptPlayer
-            ).scheduleEntity(session.player(), () -> {
-                if (session.historyTarget() == null) {
-                    if (this.selector.targetItem().updateOnFailure()) {
-                        this.openPlayers(session.player(), session.page());
-                    }
-                } else if (this.selected.entryItem().updateOnFailure()
-                        && session.historyTarget().uniqueId().equals(changed.uniqueId())) {
-                    this.openHistory(session.player(), changed, session.page());
-                }
-            }, TickSchedule.instant());
+        for (final FabricMenuSessionManager.Session scheduledSession : this.sessions.snapshot()) {
+            this.scheduler.scheduleEntity(
+                    scheduledSession.player(),
+                    () -> this.refreshSessionInPlace(scheduledSession, changed),
+                    TickSchedule.instant()
+            );
         }
 
     }
 
+    private void refreshSessionInPlace(
+            final @NotNull FabricMenuSessionManager.Session expectedSession,
+            final @NotNull TrackedPlayer changed
+    ) {
+
+        final FabricMenuSessionManager.Session current = this.sessions.current(expectedSession.player().getUUID());
+        if (current == null || current.menu() != expectedSession.menu() || !this.sessions.isCurrent(current)) {
+            return;
+        }
+
+        final State state = this.state;
+        if (current.menuType() == MenuType.TARGET_SELECTOR) {
+            if (!state.selector().targetItem().updateOnFailure()) {
+                return;
+            }
+            if (current.container().getContainerSize() != state.selector().size()) {
+                this.openPlayers(current.player(), current.page());
+                return;
+            }
+            final List<TrackedPlayer> tracked = MenuLayout.targets(
+                    this.environment.players(),
+                    state.includeEmptyHistory(),
+                    state.selector()
+            );
+            final List<Integer> slots = MenuLayout.contentSlots(
+                    state.selector().allowedSlots(),
+                    state.selector().items()
+            );
+            final int pages = MenuLayout.pages(tracked.size(), slots.size());
+            final int page = MenuLayout.clampPage(current.page(), pages);
+            populatePlayers(current.container(), state, tracked, slots, page, pages);
+            current.menu().broadcastChanges();
+            this.sessions.replace(current, new FabricMenuSessionManager.Session(
+                    current.player(),
+                    current.menu(),
+                    current.container(),
+                    MenuType.TARGET_SELECTOR,
+                    page,
+                    pages,
+                    List.copyOf(tracked),
+                    null
+            ));
+            return;
+        }
+
+        if (current.historyTarget() == null
+                || !state.selected().entryItem().updateOnFailure()
+                || !current.historyTarget().uniqueId().equals(changed.uniqueId())) {
+            return;
+        }
+        if (current.container().getContainerSize() != state.selected().size()) {
+            this.openHistory(current.player(), changed, current.page());
+            return;
+        }
+        final List<List<HistoryEntry>> groups = MenuLayout.historyGroups(
+                changed,
+                state.selected().entryItem().failuresPerEntry()
+        );
+        final List<Integer> slots = MenuLayout.contentSlots(
+                state.selected().allowedSlots(),
+                state.selected().items()
+        );
+        final int pages = MenuLayout.pages(groups.size(), slots.size());
+        final int page = MenuLayout.clampPage(current.page(), pages);
+        populateHistory(current.container(), state, changed, groups, slots, page, pages);
+        current.menu().broadcastChanges();
+        this.sessions.replace(current, new FabricMenuSessionManager.Session(
+                current.player(),
+                current.menu(),
+                current.container(),
+                MenuType.SELECTED_TARGET,
+                page,
+                pages,
+                List.of(),
+                changed
+        ));
+
+    }
+
+    /**
+     * Immutable template and compiled action snapshot visible across ticks.
+     */
+    private record State(
+            boolean includeEmptyHistory,
+            @NotNull TargetSelectorConfiguration selector,
+            @NotNull SelectedTargetConfiguration selected,
+            @NotNull MenuTextRenderer renderer,
+            @NotNull MenuActionTable<Void> actions
+    ) {
+    }
 
 }

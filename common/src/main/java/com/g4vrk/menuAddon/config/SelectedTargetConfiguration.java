@@ -5,7 +5,6 @@ import org.spongepowered.configurate.ConfigurationNode;
 
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 
 public final class SelectedTargetConfiguration {
@@ -124,8 +123,7 @@ public final class SelectedTargetConfiguration {
     }
 
     public record ColoredPane(
-            boolean enabled,
-            @NotNull ValueSource valueSource
+            boolean enabled
     ) {
 
         private static @NotNull ColoredPane read(
@@ -134,23 +132,15 @@ public final class SelectedTargetConfiguration {
 
             final String color = node.node("color").getString("probability");
 
-            try {
-                return new ColoredPane(
-                        node.node("enabled").getBoolean(true),
-                        ValueSource.valueOf(color.trim().toUpperCase(Locale.ROOT))
-                );
-            } catch (final IllegalArgumentException exception) {
+            if (!color.trim().equalsIgnoreCase("probability")) {
                 throw new IllegalArgumentException(
-                        "entry-template.material.colored-pane.color must be 'probability'",
-                        exception
+                        "entry-template.material.colored-pane.color must be 'probability'"
                 );
             }
 
+            return new ColoredPane(node.node("enabled").getBoolean(true));
+
         }
 
-    }
-
-    public enum ValueSource {
-        PROBABILITY
     }
 }

@@ -10,6 +10,7 @@ import com.g4vrk.menuAddon.listener.HistoryEntryAddedListener;
 import com.g4vrk.menuAddon.listener.MenuListener;
 import com.g4vrk.menuAddon.menu.MenuManager;
 import com.g4vrk.react.api.addon.JavaAddon;
+import com.g4vrk.react.api.config.ConfigFile;
 import com.g4vrk.react.api.extension.environment.AddonEnvironment;
 import com.g4vrk.schedula.task.TickSchedule;
 import net.kyori.adventure.audience.Audience;
@@ -101,7 +102,7 @@ public final class ReactMenuAddon extends JavaAddon {
         }
 
         if (this.menuManager != null) {
-            this.menuManager.closeAll();
+            this.menuManager.closeImmediately();
         }
 
     }
@@ -154,9 +155,6 @@ public final class ReactMenuAddon extends JavaAddon {
 
         final CommentedConfigurationNode main = read(MAIN_CONFIG, false);
         final TargetSelectorConfiguration targetSelector = new TargetSelectorConfiguration(read(TARGET_SELECTOR, true));
-        if (!targetSelector.onlyOnline()) {
-            logger().warn("listing.only-online=false is unavailable: React only exposes online tracked players");
-        }
         return new LoadedModuleSet(
                 main,
                 new AddonConfig(main.node("settings")),
@@ -169,7 +167,7 @@ public final class ReactMenuAddon extends JavaAddon {
     private @NotNull CommentedConfigurationNode read(final @NotNull String name, final boolean keepMissing) {
 
         final String language = "en".equalsIgnoreCase(System.getProperty("user.language")) ? "en" : "ru";
-        final var builder = environment().configs().file(name, ConfigurationNode.class)
+        final ConfigFile.Builder<ConfigurationNode> builder = environment().configs().file(name, ConfigurationNode.class)
                 .defaults(getClass().getClassLoader(), language + "/" + name);
         if (keepMissing) {
             builder.keepMissing();

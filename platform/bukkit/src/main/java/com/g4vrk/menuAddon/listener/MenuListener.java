@@ -9,6 +9,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
+import org.bukkit.event.inventory.ClickType;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
@@ -53,7 +54,7 @@ public final class MenuListener implements Listener {
             if (handler == null) {
                 return;
             }
-            final var click = event.getClick();
+            final ClickType click = event.getClick();
             this.scheduler.scheduleEntity(player, () -> {
                 if (InventoryViewCompat.getTopInventory(player).getHolder() == holder) {
                     handler.handle(player, click);
@@ -75,9 +76,12 @@ public final class MenuListener implements Listener {
             return;
         }
 
-        if (event.getRawSlots().stream()
-                .anyMatch(slot -> slot < topInventory.getSize())) {
-            event.setCancelled(true);
+        final int topSize = topInventory.getSize();
+        for (final int slot : event.getRawSlots()) {
+            if (slot < topSize) {
+                event.setCancelled(true);
+                return;
+            }
         }
 
     }

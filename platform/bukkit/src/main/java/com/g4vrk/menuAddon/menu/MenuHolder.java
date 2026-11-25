@@ -16,7 +16,7 @@ import java.util.UUID;
 
 public final class MenuHolder implements InventoryHolder {
 
-    private final Type type;
+    private final MenuType type;
     private final UUID targetId;
     private final Map<Integer, ClickHandler> clickHandlers = new HashMap<>();
     private final List<Runnable> timeUpdates = new ArrayList<>();
@@ -27,7 +27,7 @@ public final class MenuHolder implements InventoryHolder {
     private int totalPages;
 
     public MenuHolder(
-            final @NotNull Type type,
+            final @NotNull MenuType type,
             final int page,
             final int totalPages,
             final @Nullable UUID targetId
@@ -120,7 +120,7 @@ public final class MenuHolder implements InventoryHolder {
 
     }
 
-    public @NotNull Type type() {
+    public @NotNull MenuType type() {
 
         return this.type;
 
@@ -142,11 +142,6 @@ public final class MenuHolder implements InventoryHolder {
 
         return this.targetId;
 
-    }
-
-    public enum Type {
-        TARGET_SELECTOR,
-        SELECTED_TARGET
     }
 
     @FunctionalInterface

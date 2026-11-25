@@ -1,19 +1,26 @@
 package com.g4vrk.menuAddon.menu;
 
-import com.g4vrk.functionalActions.ExecutableAction;
 import com.g4vrk.functionalActions.defaults.DefaultActionSet;
 import com.g4vrk.functionalActions.parser.ActionParser;
 import com.g4vrk.functionalActions.parser.impl.SimpleActionParser;
 import com.g4vrk.functionalActions.registry.ActionRegistry;
 import com.g4vrk.functionalActions.registry.impl.SimpleActionRegistry;
-import com.g4vrk.react.api.util.TimeParser;
+import com.g4vrk.menuAddon.config.SelectedTargetConfiguration;
+import com.g4vrk.menuAddon.config.TargetSelectorConfiguration;
+import com.g4vrk.menuAddon.menu.action.CompiledMenuAction;
+import com.g4vrk.menuAddon.menu.action.MenuActionCompiler;
+import com.g4vrk.menuAddon.menu.action.MenuActionTable;
+import com.g4vrk.menuAddon.menu.action.ParsedMenuAction;
+import com.g4vrk.menuAddon.text.MenuTextRenderer;
 import com.g4vrk.react.api.player.TrackedPlayer;
 import com.g4vrk.react.api.player.registry.TrackedPlayerRegistry;
 import com.g4vrk.react.api.text.TextFormatter;
+import com.g4vrk.react.api.util.TimeParser;
 import com.g4vrk.schedula.task.TickSchedule;
 import com.g4vrk.schedula.task.scheduler.TaskScheduler;
 import net.kyori.adventure.audience.Audience;
 import org.bukkit.GameMode;
+import org.bukkit.Location;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -22,18 +29,17 @@ import org.slf4j.Logger;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 
+/**
+ * Executes precompiled Bukkit menu actions for viewer click contexts.
+ */
 public final class MenuActionExecutor {
 
-    private final ActionParser<Audience> actionParser;
-    private final ActionParser<Player> playerActionParser;
+    private final MenuActionCompiler<Player> compiler;
     private final Logger logger;
     private final TaskScheduler<Player> scheduler;
     private final Navigator navigator;
     private final TrackedPlayerRegistry playerRegistry;
-    private final Set<String> reportedUnknownActions = ConcurrentHashMap.newKeySet();
 
     public MenuActionExecutor(
             final @NotNull TrackedPlayerRegistry playerRegistry,
@@ -45,7 +51,6 @@ public final class MenuActionExecutor {
     ) {
 
         this.playerRegistry = playerRegistry;
-        this.actionParser = actionParser;
         this.logger = logger;
         this.scheduler = scheduler;
         this.navigator = navigator;
@@ -53,102 +58,95 @@ public final class MenuActionExecutor {
         final ActionRegistry<Player> playerActionRegistry = new SimpleActionRegistry<>(true);
         DefaultActionSet.Player.registerDefaults(
                 playerActionRegistry,
-                value -> text.format(value),
+                text::format,
                 ";",
                 s -> TimeParser.parse(s).toMillis() / 50
         );
-        this.playerActionParser = new SimpleActionParser<>(playerActionRegistry);
+        final ActionParser<Player> playerActionParser = new SimpleActionParser<>(playerActionRegistry);
+        this.compiler = new MenuActionCompiler<>(
+                actionParser,
+                playerActionParser,
+                name -> logger.warn("Unknown menu action: {}", name)
+        );
+
+    }
+
+    public @NotNull MenuActionTable<Player> compileTable(
+            final @NotNull TargetSelectorConfiguration targetSelectorConfig,
+            final @NotNull SelectedTargetConfiguration selectedTargetConfig
+    ) {
+
+        return this.compiler.compileTable(targetSelectorConfig, selectedTargetConfig);
 
     }
 
     public void execute(
-            final @NotNull List<String> actions,
+            final @NotNull List<CompiledMenuAction<Player>> actions,
             final @NotNull Context context
     ) {
 
-        for (final String configuredAction : actions) {
-            final ParsedAction parsed = ParsedAction.parse(configuredAction);
-
-            if (parsed == null) {
+        for (final CompiledMenuAction<Player> compiled : actions) {
+            final ParsedMenuAction local = compiled.local();
+            if (local != null) {
+                this.executeLocal(local, context);
                 continue;
             }
 
-            if (this.executeLocal(parsed, context)) {
-                continue;
-            }
-
-            final ExecutableAction<? super Player> playerAction = this.playerActionParser.parse(configuredAction);
-
-            if (playerAction != null) {
-                playerAction.execute(
+            if (compiled.nativeAction() != null) {
+                compiled.nativeAction().execute(
                         context.viewer(),
-                        value -> replace(value, context.placeholders())
+                        value -> MenuTextRenderer.replacePlaceholders(value, context.placeholders())
                 );
                 continue;
             }
 
-            final ExecutableAction<? super Audience> action = this.actionParser.parse(configuredAction);
-
-            if (action == null) {
-                if (this.reportedUnknownActions.add(parsed.name())) {
-                    this.logger.warn("Unknown menu action: {}", parsed.name());
-                }
-                continue;
+            if (compiled.audienceAction() != null) {
+                compiled.audienceAction().execute(
+                        context.viewer(),
+                        value -> MenuTextRenderer.replacePlaceholders(value, context.placeholders())
+                );
             }
-
-            action.execute(
-                    context.viewer(),
-                    value -> replace(value, context.placeholders())
-            );
         }
 
     }
 
-    private boolean executeLocal(
-            final @NotNull ParsedAction action,
+    private void executeLocal(
+            final @NotNull ParsedMenuAction action,
             final @NotNull Context context
     ) {
 
-        return switch (action.name()) {
+        switch (action.name()) {
             case "gm", "gamemode", "set-game-mode" -> {
-                final String gameMode = replace(action.arguments(), context.placeholders()).trim();
-                final GameMode resolved = switch (gameMode) {
-                    case "0" -> GameMode.SURVIVAL;
-                    case "1" -> GameMode.CREATIVE;
-                    case "2" -> GameMode.ADVENTURE;
-                    case "3" -> GameMode.SPECTATOR;
-                    default -> {
-                        try {
-                            yield GameMode.valueOf(gameMode.toUpperCase(Locale.ROOT));
-                        } catch (final IllegalArgumentException exception) {
-                            yield null;
-                        }
-                    }
-                };
+                final String gameMode = MenuTextRenderer.replacePlaceholders(
+                        action.arguments(),
+                        context.placeholders()
+                ).trim();
+                final GameMode resolved = resolveGameMode(gameMode);
 
                 if (resolved == null) {
                     this.logger.warn("Invalid game mode in menu action: {}", gameMode);
                 } else {
                     context.viewer().setGameMode(resolved);
                 }
-
-                yield true;
             }
 
             case "tp-to-target", "teleport-to-target" -> {
                 final TrackedPlayer target = context.target();
 
                 if (target != null && this.playerRegistry.get(target.uniqueId()) == target) {
-                    this.scheduler.scheduleEntity(((Player) target.platform().handle()), () -> {
+                    final Player nativeTarget = (Player) target.platform().handle();
+                    this.scheduler.scheduleEntity(nativeTarget, () -> {
                         if (this.playerRegistry.get(target.uniqueId()) != target) {
                             return;
                         }
-                        final var location = ((Player) target.platform().handle()).getLocation();
-                        this.scheduler.scheduleEntity(context.viewer(), () -> context.viewer().teleportAsync(location), TickSchedule.instant());
+                        final Location location = nativeTarget.getLocation();
+                        this.scheduler.scheduleEntity(
+                                context.viewer(),
+                                () -> context.viewer().teleportAsync(location),
+                                TickSchedule.instant()
+                        );
                     }, TickSchedule.instant());
                 }
-
-                yield true;
             }
 
             case "select-clicked", "open-selected-target" -> {
@@ -159,17 +157,15 @@ public final class MenuActionExecutor {
                             0
                     );
                 }
-
-                yield true;
             }
 
-            case "open-target-selector", "back" -> {
-                this.navigator.openTargetSelector(context.viewer(), 0);
-                yield true;
-            }
+            case "open-target-selector", "back" -> this.navigator.openTargetSelector(context.viewer(), 0);
 
             case "switch-to-page" -> {
-                final String resolved = replace(action.arguments(), context.placeholders());
+                final String resolved = MenuTextRenderer.replacePlaceholders(
+                        action.arguments(),
+                        context.placeholders()
+                );
 
                 try {
                     final int requestedPage = Integer.parseInt(resolved.trim()) - 1;
@@ -177,39 +173,40 @@ public final class MenuActionExecutor {
                 } catch (final NumberFormatException exception) {
                     this.logger.warn("Invalid page number in menu action: {}", resolved);
                 }
-
-                yield true;
             }
 
-            case "close-menu" -> {
-                context.viewer().closeInventory();
-                yield true;
-            }
+            case "close-menu" -> context.viewer().closeInventory();
 
-            default -> false;
-        };
+            default -> {
+            }
+        }
 
     }
 
-    private static @NotNull String replace(
-            final @NotNull String value,
-            final @NotNull Map<String, String> placeholders
+    private static @Nullable GameMode resolveGameMode(
+            final @NotNull String value
     ) {
 
-        String result = value;
-
-        for (final Map.Entry<String, String> entry : placeholders.entrySet()) {
-            result = result.replace('{' + entry.getKey() + '}', entry.getValue());
-        }
-
-        return result;
+        return switch (value) {
+            case "0" -> GameMode.SURVIVAL;
+            case "1" -> GameMode.CREATIVE;
+            case "2" -> GameMode.ADVENTURE;
+            case "3" -> GameMode.SPECTATOR;
+            default -> {
+                try {
+                    yield GameMode.valueOf(value.toUpperCase(Locale.ROOT));
+                } catch (final IllegalArgumentException exception) {
+                    yield null;
+                }
+            }
+        };
 
     }
 
     public record Context(
             @NotNull Player viewer,
             @Nullable TrackedPlayer target,
-            @NotNull MenuHolder.Type menuType,
+            @NotNull MenuType menuType,
             int page,
             int totalPages,
             @NotNull Map<String, String> placeholders
@@ -218,81 +215,22 @@ public final class MenuActionExecutor {
 
     public interface Navigator {
 
-        void openTargetSelector(@NotNull Player viewer, int page);
+        void openTargetSelector(
+                @NotNull Player viewer,
+                int page
+        );
 
-        void openSelectedTarget(@NotNull Player viewer, @NotNull TrackedPlayer target, int page);
+        void openSelectedTarget(
+                @NotNull Player viewer,
+                @NotNull TrackedPlayer target,
+                int page
+        );
 
-        void switchPage(@NotNull Context context, int page);
-    }
-
-    private record ParsedAction(
-            @NotNull String name,
-            @NotNull String arguments
-    ) {
-
-        private static @Nullable ParsedAction parse(
-                final @NotNull String value
-        ) {
-
-            final String action = value.trim();
-
-            if (action.isEmpty()) {
-                return null;
-            }
-
-            int argumentStart;
-            String name;
-
-            final char first = action.charAt(0);
-            final char closing = switch (first) {
-                case '[' -> ']';
-                case '(' -> ')';
-                case '<' -> '>';
-                default -> 0;
-            };
-
-            if (closing != 0) {
-                final int end = action.indexOf(closing, 1);
-
-                if (end < 0) {
-                    return null;
-                }
-
-                name = action.substring(1, end).trim();
-                argumentStart = end + 1;
-            } else {
-                final int space = action.indexOf(' ');
-                final int colon = action.indexOf(':');
-                final int end;
-
-                if (space < 0) {
-                    end = colon < 0 ? action.length() : colon;
-                } else if (colon < 0) {
-                    end = space;
-                } else {
-                    end = Math.min(space, colon);
-                }
-
-                name = action.substring(0, end).trim();
-                argumentStart = end;
-            }
-
-            while (argumentStart < action.length()) {
-                final char character = action.charAt(argumentStart);
-
-                if (character != ' ' && character != ':') {
-                    break;
-                }
-
-                argumentStart++;
-            }
-
-            return new ParsedAction(
-                    name.toLowerCase(Locale.ROOT),
-                    action.substring(argumentStart).trim()
-            );
-
-        }
+        void switchPage(
+                @NotNull Context context,
+                int page
+        );
 
     }
+
 }

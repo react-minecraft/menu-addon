@@ -14,6 +14,7 @@ import org.spongepowered.configurate.ConfigurationNode;
 import org.spongepowered.configurate.serialize.SerializationException;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
 
@@ -73,7 +74,7 @@ public final class MenuCommand {
                 commands.command(ROOT)
                         .literal(literal)
                         .permission(permission)
-                        .handler(context -> open(java.util.Objects.requireNonNull(context.sender().unwrap(CommandSender.class))))
+                        .handler(context -> open(Objects.requireNonNull(context.sender().unwrap(CommandSender.class))))
         );
 
         commands.register(
@@ -82,7 +83,7 @@ public final class MenuCommand {
                         .literal(literal)
                         .literal("reload")
                         .permission(permission)
-                        .handler(context -> reload(java.util.Objects.requireNonNull(context.sender().unwrap(CommandSender.class))))
+                        .handler(context -> reload(Objects.requireNonNull(context.sender().unwrap(CommandSender.class))))
         );
 
     }

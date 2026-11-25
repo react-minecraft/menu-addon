@@ -17,6 +17,7 @@ import net.minestom.server.event.Event;
 import net.minestom.server.event.EventNode;
 import net.minestom.server.event.inventory.InventoryCloseEvent;
 import net.minestom.server.event.inventory.InventoryPreClickEvent;
+import net.minestom.server.event.player.PlayerDisconnectEvent;
 import org.spongepowered.configurate.ConfigurationNode;
 
 import java.io.IOException;
@@ -46,6 +47,7 @@ public final class MinestomMenuAddon extends JavaAddon {
         this.eventNode = EventNode.all("react-menu-addon");
         this.eventNode.addListener(InventoryPreClickEvent.class, this.view::onInventoryClick);
         this.eventNode.addListener(InventoryCloseEvent.class, this.view::onInventoryClose);
+        this.eventNode.addListener(PlayerDisconnectEvent.class, this.view::onPlayerDisconnect);
         MinecraftServer.getGlobalEventHandler().addChild(this.eventNode);
 
         final CommandRegistrar commands = this.environment.commands();
