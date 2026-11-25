@@ -24,7 +24,9 @@ public final class BukkitMenuItemRenderer {
             final @NotNull MenuItemData data
     ) {
 
-        final Material material = XMaterial.matchXMaterial(data.material())
+        final String configuredMaterial = data.material();
+        final String materialName = configuredMaterial.startsWith("minecraft:") ? configuredMaterial.substring("minecraft:".length()) : configuredMaterial;
+        final Material material = XMaterial.matchXMaterial(materialName)
                 .map(XMaterial::get)
                 .filter(Material::isItem)
                 .orElseThrow(() -> new IllegalArgumentException("Unknown item material: " + data.material()));
