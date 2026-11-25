@@ -11,7 +11,7 @@ fabric-minecraft = "26.2"
 
 # React commit on react-minecraft/plugin, built by JitPack.
 react = "df00c45"
-actions = "2.2.1"
+actions = "2.2.2"
 schedula = "2.0.1"
 
 packetevents = "2.13.0"
